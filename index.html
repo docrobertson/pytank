@@ -81,6 +81,7 @@
   .wave-row { display: flex; gap: 10px; align-items: baseline; font: 700 13px/1 var(--f-pixel); letter-spacing: 0.08em; }
   .wave-row b { color: var(--gold); }
   .wave-row span { white-space: nowrap; }
+  #shotsBox.over { opacity: 0.4; text-decoration: line-through; }
   #radar { width: 112px; height: 112px; display: block; }
   .hud-btns { display: flex; gap: 6px; pointer-events: auto; }
   .hud-btn {
@@ -323,7 +324,7 @@
       </div>
     </div>
     <div class="cell right">
-      <div class="plate wave-row only-arcade"><span>WAVE <b id="wave">1</b></span><span><b id="left">6</b> LEFT</span></div>
+      <div class="plate wave-row only-arcade"><span>WAVE <b id="wave">1</b></span><span><b id="left">6</b> LEFT</span><span id="shotsBox">SHOTS <b id="shots">0/12</b></span></div>
       <div class="plate wave-row only-rogue"><span>KILLS <b id="rKills">0</b></span></div>
       <canvas id="radar" width="112" height="112" aria-label="Map"></canvas>
     </div>
@@ -350,7 +351,7 @@
         <button id="btnArcade" class="mode">
           <span class="mode-name">ARCADE</span>
           <span class="mode-best">BEST <b id="bestArcade">0</b></span>
-          <span class="mode-desc">Blast every target before the clock runs out. Ram crates, mind the barrels. Waves get bigger and faster.</span>
+          <span class="mode-desc">Blast every target before the clock runs out. Ram crates, mind the barrels, and save shots for a sharpshooter bonus.</span>
         </button>
         <button id="btnRogue" class="mode rogue">
           <span class="mode-name">BULLET ROGUE</span>
@@ -451,6 +452,7 @@ const SHELL_SPEED = 54;
 const SHELL_LIFE = 1.5;
 const ENEMY_SHELL_SPEED = 24;
 const COMBO_WINDOW = 2.5;
+const SHOTS_PER_TARGET = 2;   // clear a wave within this many shots per target for the Sharpshooter bonus
 const SPAWN = { x: 0, z: -38 };
 
 // Tank handling. Speeds in units/s, accelerations in units/s², turning in rad/s and rad/s².
@@ -724,7 +726,7 @@ const G = {
   wave: 1, cfg: waveConfig(1), palette: PALETTES[0],
   score: 0, kills: 0, timeLeft: 0, remaining: 0,
   combo: 0, comboTimer: 0, bestCombo: 0,
-  stateTime: 0, bonusSpawned: false, lastSecond: 99, waveHits: 0,
+  stateTime: 0, bonusSpawned: false, lastSecond: 99, waveHits: 0, shots: 0, waveTargets: 6,
   shake: 0, hitstop: 0, dustColor: '#9aa86a', best: store.get('best', 0), soundMode: store.get('sound', 0),
   overShownAt: 0,
 };
@@ -1316,8 +1318,8 @@ touchEl.addEventListener('pointerdown', (e) => {
   if (rogue || e.clientX < innerWidth * 0.5) {
     if (stick.id !== null) return;
     stick.id = e.pointerId;
-    stick.ox = clamp(e.clientX, 40, rogue ? innerWidth - 40 : innerWidth * 0.5 - 20);
-    stick.oy = clamp(e.clientY, 60, innerHeight - 40);
+    stick.ox = e.clientX;
+    stick.oy = e.clientY;
     placeStick();
     stickEl.classList.add('on');
     moveStick(e.clientX, e.clientY);
@@ -1337,13 +1339,7 @@ function placeStick() {
 function moveStick(cx, cy) {
   let dx = cx - stick.ox, dy = cy - stick.oy;
   const d = Math.hypot(dx, dy);
-  if (d > STICK_R) {
-    // The base trails the thumb, so reversing direction never needs a long drag back.
-    const k = (d - STICK_R) / d;
-    stick.ox += dx * k; stick.oy += dy * k;
-    dx -= dx * k; dy -= dy * k;
-    placeStick();
-  }
+  if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; }
   knobEl.style.transform = `translate(${dx}px, ${dy}px)`;
   stick.x = dx / STICK_R; stick.y = -dy / STICK_R;
 }
@@ -1449,7 +1445,7 @@ function readInput() {
 const ui = {
   hud: $('hud'), title: $('title'), pause: $('pause'), over: $('over'), touch: touchEl,
   score: $('score'), timer: $('timer'), wave: $('wave'), left: $('left'),
-  combo: $('combo'), comboText: $('comboText'), comboBar: $('comboBar'),
+  combo: $('combo'), comboText: $('comboText'), comboBar: $('comboBar'), shots: $('shots'), shotsBox: $('shotsBox'),
   power: $('power'), powerName: $('powerName'), powerBar: $('powerBar'),
   banner: $('banner'), bannerBig: $('bannerBig'), bannerSmall: $('bannerSmall'),
   fade: $('fade'), hurt: $('hurt'), sound: $('btnSound'), levelup: $('levelup'),
@@ -1520,6 +1516,8 @@ function startWave(w) {
   G.timeLeft = G.cfg.time;
   G.bonusSpawned = false;
   G.lastSecond = 99;
+  G.shots = 0;
+  G.waveTargets = G.remaining;
   G.comboTimer = 0;
   G.waveHits = 0;
   setState('countdown');
@@ -1599,8 +1597,15 @@ function waveClear() {
   setState('clear');
   const bonus = Math.ceil(G.timeLeft) * 100;
   const flawless = G.cfg.tankShoot && G.waveHits === 0 ? 250 * G.wave : 0;
-  G.score += bonus + flawless;
-  banner('CLEAR!', `TIME BONUS +${bonus.toLocaleString()}` + (flawless ? ` \u00b7 NO HITS +${flawless.toLocaleString()}` : ''), 2.1);
+  // Every shot under the limit is worth 150; firing freely costs nothing but this bonus.
+  const limit = SHOTS_PER_TARGET * G.waveTargets;
+  const sharp = G.shots <= limit ? 150 * (limit - G.shots + 1) : 0;
+  G.score += bonus + flawless + sharp;
+  const parts = [`TIME BONUS +${bonus.toLocaleString()}`];
+  if (sharp) parts.push(`SHARPSHOOTER +${sharp.toLocaleString()}`);
+  if (flawless) parts.push(`NO HITS +${flawless.toLocaleString()}`);
+  banner('CLEAR!', parts.join(' \u00b7 '), 2.1);
+  if (sharp) popup('SHARPSHOOTER', player.x, 4.5, player.z, 'big', `${G.shots} SHOTS`);
   audio.clear();
   for (const s of shells) if (s.owner === 'enemy') { scene.remove(s.mesh); s.dead = true; }
   for (const t of targets) if (t.alive && t.type === 'bonus') vanish(t);
@@ -1703,6 +1708,7 @@ document.addEventListener('visibilitychange', () => {
 function firePlayer() {
   const p = player;
   p.cooldown = G.cfg.fireCooldown * (p.power === 'rapid' ? 0.4 : 1);
+  G.shots++;
   const lock = assistTarget();
   const aim = lock ? leadAngle(lock) : p.a;
   const spread = p.power === 'spread' ? [-0.17, 0, 0.17] : [0];
@@ -3750,6 +3756,9 @@ function updateHud() {
   if (hudCache.low !== low) { hudCache.low = low; ui.timer.classList.toggle('low', low); }
   setText(ui.wave, 'wave', String(G.wave));
   setText(ui.left, 'left', String(Math.max(0, G.remaining)));
+  const limit = SHOTS_PER_TARGET * G.waveTargets, overLimit = G.shots > limit;
+  setText(ui.shots, 'shots', `${G.shots}/${limit}`);
+  if (hudCache.shotsOver !== overLimit) { hudCache.shotsOver = overLimit; ui.shotsBox.classList.toggle('over', overLimit); }
   const showCombo = G.comboTimer > 0 && G.combo > 1;
   if (ui.combo.hidden === showCombo) ui.combo.hidden = !showCombo;
   if (showCombo) {

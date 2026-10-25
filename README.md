@@ -29,18 +29,19 @@ Chase camera behind and above your tank. Destroy every target in the wave before
 - **Sharpshooter:** clear a wave using no more than 2 shots per target (the HUD shows `SHOTS 5/12`) and every shot under the limit pays 150. Firing freely costs nothing except this bonus.
 - **Heavy handling:** the tank builds up speed, coasts to a stop and winds into and out of turns.
 - **Aim assist:** a shot locks onto a target just off your aim line (the line turns orange) and leads moving targets.
+- **Guide arrow:** once three or fewer targets are left, an arrow by your tank points to the nearest one.
 - **Pickups:** Rapid Fire, Spread Shot and +5 seconds. A rainbow bonus target appears mid-wave and is worth +5 seconds.
 
 ## Bullet Rogue
 
 A high, north-up camera so you can see shots coming from every side. Your turret aims and fires by itself; you drive, dodge and dash.
 
-- **Mazes and the uplink:** each level is a generated maze with an entrance and an exit gate. Stand in the blue uplink zone to charge the gate; holding it draws raiders, so it plays like a short last stand. Power cores are optional: each one keeps spawning enemies, and destroying it charges the uplink by 35%. Wipe out every enemy and the gate opens on its own; either way the uplink collapses once it's no longer needed. Every fifth maze is a boss fight instead. Clearing a maze quickly pays bonus experience, and every orb left on the map flies to you when the exit opens.
+- **Mazes and the uplink:** each level is a generated maze with an entrance and an exit gate. Stand in the blue uplink zone to charge the gate; holding it draws raiders, so it plays like a short last stand. Power cores are optional: each one keeps spawning enemies, and destroying it charges the uplink by 35%. Wipe out every enemy and the gate opens on its own; either way the uplink collapses once it's no longer needed. A ground arrow by your tank points the way to the uplink, then to the exit. Every fifth maze is a boss fight instead, and beating the boss opens the gate. Clearing a maze repairs a heart, finishing it quickly pays bonus experience, and every orb left on the map flies to you when the exit opens.
 - **Enemies:** crawlers rush you, gunner tanks fire aimed fans, sentries fire rings, spinners spray spirals, heavies lob shells that burst. Gold elites have triple armour and drop triple experience plus a pickup.
 - **Your health:** hearts in the HUD; a bar over your tank (armour charges in cyan) pops up for a few seconds whenever they change. A damaged tank smokes, and at one heart the screen edges glow red.
 - **Bullet hell rules:** your hitbox is much smaller than your tank. Near misses ("grazes") pay a little experience. Dashing makes you briefly untouchable and rams crawlers.
 - **Kill streaks:** kills less than two seconds apart build a streak that multiplies experience, up to x1.6.
-- **Level-up cards:** pick one of three. You get a reroll per maze cleared (up to 3 banked). Cards show what you have now and what you'll have after.
+- **Level-up cards:** pick one of three. Cards show what you have now and what you'll have after. You start with one reroll and earn another for each maze cleared (up to 3 banked).
 - **Skills** are simple steps, most with no cap: Autoloader (+10% fire rate), Heavy Shells (+10% damage), Long Barrel (shell speed and range), Engine Tune (speed), Salvager (experience), Tractor Beam (pickup range), Nitro (dash recharge), Field Repair (heart regeneration) and Battering Ram (dashes damage what they plow through). Gun Sight (crits) caps at 100% and Hull Plating at 10 hearts.
 - **Gear** changes how you fight and fills one of three slots (a fourth comes from the first boss). Each piece upgrades to level 3: Multi-Cannon, Ricochet Rounds, Seeker Shells, Piercing Rounds, Flak Shells, Reactive Armor, Escort Drones and EMP Pulse (wipes nearby shots, hurts and shoves enemies). Gear on a timer shows a cooldown sweep in its slot.
 - **Pickups:** icon cubes in dead ends and from cores are permanent: each adds a skill rank or repairs a heart. From maze 2 a blue supply crate hides in the deepest dead end with a choice of gear; bosses drop a gold crate.
@@ -57,6 +58,10 @@ A high, north-up camera so you can see shots coming from every side. Your turret
 | Pause | P or Esc | II button |
 | Sound | M (music + FX → FX only → off) | ♪ button |
 
-Gamepads work too: left stick or d-pad to drive, A or a trigger to fire (Arcade) or dash (Rogue), Start to pause.
+Gamepads work too: left stick or d-pad to drive, A or a shoulder button to fire (Arcade) or dash (Rogue), Start to pause. On the level-up cards, the d-pad moves between cards, A picks and Y rerolls.
 
 Your best Arcade score and deepest Rogue maze are saved in the browser.
+
+## Code
+
+Everything lives in `index.html`: the page, its styles and one module script, with no build step. The only dependency is three.js (r160), loaded from jsDelivr. The script is split into commented sections: shared engine pieces (renderer, models, collision, effects, audio, input), then Arcade, then Bullet Rogue (data, models, maze generation, enemies, player, level-up cards, HUD), then the camera, HUD and main loop.

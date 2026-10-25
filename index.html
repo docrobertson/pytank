@@ -47,6 +47,8 @@
   #fade { position: fixed; inset: 0; background: var(--night); opacity: 0; pointer-events: none; z-index: 8; }
   #hurt { position: fixed; inset: 0; pointer-events: none; z-index: 3; opacity: 0;
     box-shadow: inset 0 0 120px 30px var(--hot); }
+  #hurt.low { animation: lowpulse 1.1s ease-in-out infinite; }
+  @keyframes lowpulse { 0%, 100% { opacity: 0.12; } 50% { opacity: 0.5; } }
 
   /* ---------- HUD ---------- */
   #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
@@ -319,6 +321,7 @@
     #banner.show { animation: none; opacity: 1; }
   #banner.hide { animation: none; opacity: 0; }
     #timer.low, #timer.gain, #combo.bump, #rGoal.open, .upg, #dashBtn.down { animation: none; }
+    #hurt.low { animation: none; opacity: 0.3; }
   }
 </style>
 </head>
@@ -2451,7 +2454,7 @@ scene.add(uplink);
 
 // Health bars for the tougher enemies: billboards that always face the camera.
 const barGeo = new THREE.PlaneGeometry(1, 1);
-const barBg = new THREE.MeshBasicMaterial({ color: '#14172b', transparent: true, opacity: 0.8, depthTest: false });
+const barBg = new THREE.MeshBasicMaterial({ color: '#14172b', depthTest: false });
 const barFg = new THREE.MeshBasicMaterial({ color: '#ff4b5c', depthTest: false });
 function makeBar(w) {
   const g = new THREE.Group();
@@ -2461,6 +2464,47 @@ function makeBar(w) {
   g.userData = { fg, w };
   return g;
 }
+
+// Player health over the tank: a segment per heart, armour charges in cyan.
+const pbar = new THREE.Group();
+const pbarBg = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: '#14172b', depthTest: false }));
+pbarBg.renderOrder = 12;
+pbar.add(pbarBg);
+const pbarSegs = [];
+for (let i = 0; i < 12; i++) {
+  const m = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: '#ff4b5c', depthTest: false }));
+  m.renderOrder = 13;
+  m.position.z = 0.01;
+  pbar.add(m);
+  pbarSegs.push(m);
+}
+pbar.visible = false;
+scene.add(pbar);
+let pbarSig = '';
+
+// Floating signs that name the uplink and the gate.
+function makeLabel(text, color) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 96;
+  const g = c.getContext('2d');
+  g.font = 'bold 46px "Silkscreen", "Courier New", monospace';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 10; g.lineJoin = 'round'; g.strokeStyle = '#14172b';
+  g.strokeText(text, 256, 50);
+  g.fillStyle = color;
+  g.fillText(text, 256, 50);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, fog: false }));
+  sp.scale.set(10, 1.9, 1);
+  return sp;
+}
+const upLabel = makeLabel('HOLD TO CHARGE', '#56e8ff');
+upLabel.position.y = 6.4;
+uplink.add(upLabel);
+const gateLocked = makeLabel('EXIT LOCKED', '#ff4b5c'), gateOpen = makeLabel('EXIT', '#6cf0a0');
+gateLocked.position.y = gateOpen.position.y = 6.8;
+gate.add(gateLocked, gateOpen);
 
 // ============================================================
 // Bullet Rogue: run state
@@ -2525,8 +2569,11 @@ function clearRogue() {
   RG.enemies = []; RG.pickups = []; RG.boss = null; RG.target = null; RG.uplink = null;
   pbs = []; ebs = []; orbs = [];
   ebCore.count = ebGlow.count = pbMesh.count = orbMesh.count = mazeMesh.count = 0;
-  for (const o of [gate, exitPad, entryPad, shieldMesh, pulseRing, uplink, ...droneMeshes]) o.visible = false;
+  for (const o of [gate, exitPad, entryPad, shieldMesh, pulseRing, uplink, pbar, ...droneMeshes]) o.visible = false;
   player.mesh.userData.turret.rotation.y = 0;
+  ui.hurt.classList.remove('low');
+  hudCache.lowHp = false;
+  pbarSig = '';
 }
 
 // ============================================================
@@ -2684,6 +2731,9 @@ function buildMaze(depth) {
   exitPad.material.color.set('#ff3b5c');
   gateField.material.color.set('#ff3b5c');
   gate.visible = exitPad.visible = entryPad.visible = true;
+  gateLocked.visible = true;
+  gateOpen.visible = false;
+  RG.lockedAt = -9;
 
   populateMaze(m, dist, entry, exit, boss);
   if (RG.uplink) {
@@ -3132,6 +3182,10 @@ function updateRoguePlayer(dt, active) {
     p.dustAcc += work * dt;
     while (p.dustAcc > 1) { p.dustAcc -= 1; kickDust(hx, hz); }
   }
+  // A damaged tank smokes: lightly at two hearts, heavily at one.
+  if (G.state === 'play' && RG.hearts <= 2 && Math.random() < (RG.hearts === 1 ? 0.35 : 0.12)) {
+    burst(p.x + rand(-0.6, 0.6), 1.6, p.z + rand(-0.6, 0.6), ['#2e2e2e', '#4a4a4a', '#1b1b1b'], 1, 1, 0.45, { smoke: true });
+  }
   const m = p.mesh, hull = m.userData.hull;
   m.position.set(p.x, 0, p.z);
   m.rotation.y = p.a;
@@ -3467,16 +3521,18 @@ function emitPulse() {
   audio.pulse();
 }
 
-function openExit() {
+function openExit(why = '') {
   if (RG.exitOpen) return;
   RG.exitOpen = true;
+  gateLocked.visible = false;
+  gateOpen.visible = true;
   RG.inUplink = false;
   if (RG.uplink) RG.uplink.charge = 1;
   for (const o of orbs) o.pull = true;   // sweep up every orb left on the map, so holding the zone never wastes experience
   RG.exitFlow = mazeDist(RG.maze, RG.exitCell);
   exitPad.material.color.set('#6cf0a0');
   gateField.material.color.set('#6cf0a0');
-  banner('EXIT OPEN', 'HEAD FOR THE GATE', 1.6);
+  banner('EXIT OPEN', why === 'clear' ? 'MAZE CLEARED OUT \u00b7 HEAD FOR THE GATE' : 'HEAD FOR THE GATE', 1.6);
   audio.clear();
 }
 function addCharge(v) {
@@ -3514,6 +3570,7 @@ function updateUplink(dt, active) {
     const tick = Math.floor(u.charge * 10);
     if (tick > u.tick) { u.tick = tick; audio.tone('square', 440 + tick * 70, 440 + tick * 70, 0.07, 0.06); }
   }
+  upLabel.visible = !RG.exitOpen && !RG.inUplink;
   const c = RG.exitOpen ? 1 : u.charge, col = RG.exitOpen ? '#6cf0a0' : '#56e8ff';
   upFill.scale.setScalar(Math.max(0.01, UPLINK_R * c));
   upRing.material.opacity = RG.inUplink ? 0.6 + Math.sin(G.stateTime * 10) * 0.3 : 0.75;
@@ -3527,7 +3584,16 @@ function updateUplink(dt, active) {
 function updateGate() {
   gateField.material.opacity = (RG.exitOpen ? 0.55 : 0.32) + Math.sin(G.stateTime * 6) * 0.12;
   exitPad.material.opacity = RG.exitOpen ? 0.7 + Math.sin(G.stateTime * 6) * 0.25 : 0.45;
-  if (!RG.exitOpen) return;
+  if (!RG.exitOpen) {
+    // No enemies left at all: nothing to hold the gate shut.
+    if (G.state === 'play' && !RG.enemies.length && RG.mazeTime > 1) { openExit('clear'); return; }
+    const near = G.state === 'play' && Math.hypot(player.x - RG.exitX, player.z - RG.exitZ) < 4.5;
+    if (near && RG.mazeTime - RG.lockedAt > 3) {
+      RG.lockedAt = RG.mazeTime;
+      popup('GATE LOCKED', player.x, 4, player.z, 'bad', RG.boss ? 'DESTROY THE FORTRESS' : 'CHARGE THE UPLINK OR CLEAR THE MAZE');
+    }
+    return;
+  }
   if (Math.random() < 0.35) burst(RG.exitX + rand(-3, 3), 0.3, RG.exitZ + rand(-3, 3), '#6cf0a0', 1, 1, 0.3, { smoke: true, grow: -0.2 });
   if (G.state === 'play' && Math.hypot(player.x - RG.exitX, player.z - RG.exitZ) < 3.4) mazeClear();
 }
@@ -3778,6 +3844,7 @@ function updateRogue(dt) {
   updateGate();
   renderRogue(dt);
   updateRogueCamera(dt);
+  updatePlayerBar();
   updateRogueGuide();
   updateRogueHud();
   const on = G.state === 'play' || G.state === 'countdown' || G.state === 'clear';
@@ -3870,6 +3937,30 @@ function renderRogue(dt) {
   }
 }
 
+function updatePlayerBar() {
+  const show = G.mode === 'rogue' && (G.state === 'play' || G.state === 'countdown' || G.state === 'clear');
+  pbar.visible = show;
+  if (!show) return;
+  const st = RG.st, max = st.maxHearts, n = max + st.armorMax;
+  const sig = `${RG.hearts}/${max}/${RG.armor}/${st.armorMax}`;
+  if (sig !== pbarSig) {
+    pbarSig = sig;
+    const gap = 0.12, segW = Math.min(0.8, (5.6 - gap * (n - 1)) / n), total = n * segW + (n - 1) * gap;
+    pbarBg.scale.set(total + 0.3, 0.7, 1);
+    pbarSegs.forEach((m, i) => {
+      m.visible = i < n;
+      if (!m.visible) return;
+      m.scale.set(segW, 0.44, 1);
+      m.position.x = -total / 2 + segW / 2 + i * (segW + gap);
+      const armorSeg = i >= max, on = armorSeg ? i - max < RG.armor : i < RG.hearts;
+      m.material.color.set(armorSeg ? (on ? '#56e8ff' : '#2a3a48') : (on ? '#ff4b5c' : '#3a3f55'));
+    });
+  }
+  pbar.position.set(player.x, 3.8, player.z);
+  pbar.quaternion.copy(camera.quaternion);
+  pbar.scale.setScalar(RG.hearts === 1 ? 1 + Math.sin(G.stateTime * 10) * 0.1 : 1);   // pulse one hit from the end
+}
+
 // High, north-up camera so shots from every side stay in view.
 function updateRogueCamera(dt) {
   const k = clamp((1.2 - camera.aspect) / 0.65, 0, 1);
@@ -3889,13 +3980,13 @@ function updateRogueCamera(dt) {
   if (Math.abs(camera.fov - baseFov) > 0.05) { camera.fov += (baseFov - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
 }
 
-// Ground arrow along the maze: to the uplink when things go quiet, to the exit once it opens.
+// Ground arrow along the maze: to the uplink until it's charged, then to the exit.
 function updateRogueGuide() {
   aimLine.visible = false;
   let field = null, target = null, color = '#6cf0a0';
   if (G.state === 'play') {
     if (RG.exitOpen) { field = RG.exitFlow; target = { x: RG.exitX, z: RG.exitZ }; }
-    else if (RG.uplink && !RG.inUplink && RG.idle > 1.5) { field = RG.uplink.flow; target = RG.uplink; color = '#56e8ff'; }
+    else if (RG.uplink && !RG.inUplink) { field = RG.uplink.flow; target = RG.uplink; color = '#56e8ff'; }
   }
   guide.visible = !!field;
   if (!field) return;
@@ -3921,6 +4012,8 @@ function updateRogueHud() {
   if (ui.hud.hidden) return;
   const st = RG.st, u = RG.uplink;
   setText(rui.hearts, 'rh', '♥'.repeat(Math.max(0, RG.hearts)));
+  const lowHp = RG.hearts === 1 && G.state === 'play';
+  if (hudCache.lowHp !== lowHp) { hudCache.lowHp = lowHp; ui.hurt.classList.toggle('low', lowHp); }
   setText(rui.heartsEmpty, 're', '♥'.repeat(Math.max(0, st.maxHearts - RG.hearts)));
   setText(rui.armor, 'ra', '◆'.repeat(RG.armor));
   setText(rui.level, 'rl', String(RG.level));

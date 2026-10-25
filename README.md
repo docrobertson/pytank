@@ -35,8 +35,9 @@ Chase camera behind and above your tank. Destroy every target in the wave before
 
 A high, north-up camera so you can see shots coming from every side. Your turret aims and fires by itself; you drive, dodge and dash.
 
-- **Mazes and the uplink:** each level is a generated maze with an entrance and an exit gate. Stand in the blue uplink zone to charge the gate; holding it draws raiders, so it plays like a short last stand. Power cores are optional: each one keeps spawning enemies, and destroying it charges the uplink by 35%. Every fifth maze is a boss fight instead. Clearing a maze quickly pays bonus experience, and every orb left on the map flies to you when the exit opens.
+- **Mazes and the uplink:** each level is a generated maze with an entrance and an exit gate. Stand in the blue uplink zone to charge the gate; holding it draws raiders, so it plays like a short last stand. Power cores are optional: each one keeps spawning enemies, and destroying it charges the uplink by 35%. Wipe out every enemy and the gate opens on its own. Every fifth maze is a boss fight instead. Clearing a maze quickly pays bonus experience, and every orb left on the map flies to you when the exit opens.
 - **Enemies:** crawlers rush you, gunner tanks fire aimed fans, sentries fire rings, spinners spray spirals, heavies lob shells that burst. Gold elites have triple armour and drop triple experience plus a pickup.
+- **Your health:** hearts in the HUD and a bar over your tank (armour charges in cyan). A damaged tank smokes, and at one heart the bar pulses and the screen edges glow red.
 - **Bullet hell rules:** your hitbox is much smaller than your tank. Near misses ("grazes") pay a little experience. Dashing makes you briefly untouchable and rams crawlers.
 - **Kill streaks:** kills less than two seconds apart build a streak that multiplies experience, up to x1.6.
 - **Level-up cards:** pick one of three. You get a reroll per maze cleared (up to 3 banked). Cards show what you have now and what you'll have after.

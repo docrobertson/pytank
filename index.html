@@ -202,6 +202,9 @@
     font: 700 14px/1 var(--f-pixel); color: var(--night); background: var(--panel);
   }
   .slot.empty { border-style: dashed; }
+  .slot.charging::after { content: ""; position: absolute; inset: 0; border-radius: 2px; background: conic-gradient(transparent calc(var(--cd, 1) * 360deg), rgba(20, 23, 43, 0.65) 0); }
+  .slot.fired { animation: slotfire 0.4s ease-out; }
+  @keyframes slotfire { from { transform: scale(1.25); box-shadow: 0 0 0 4px var(--steel); } to { transform: none; box-shadow: none; } }
   .slot svg { width: 19px; height: 19px; margin-bottom: 3px; }
   .slot i { position: absolute; left: 0; right: 0; bottom: 1px; text-align: center; font-style: normal; font-size: 9px; line-height: 1; letter-spacing: 1px; }
   .rogue-mid { display: grid; gap: 5px; justify-items: center; }
@@ -322,6 +325,7 @@
   #banner.hide { animation: none; opacity: 0; }
     #timer.low, #timer.gain, #combo.bump, #rGoal.open, .upg, #dashBtn.down { animation: none; }
     #hurt.low { animation: none; opacity: 0.3; }
+    .slot.fired { animation: none; }
   }
 </style>
 </head>
@@ -2431,10 +2435,12 @@ const shieldMesh = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color
 shieldMesh.scale.setScalar(2.4);
 const droneMeshes = [0, 1, 2].map(() => shadowed(new THREE.Mesh(crawlerGeo, lam('#43e0d6', { emissive: '#0b5a56', flatShading: true }))));
 for (const d of droneMeshes) d.scale.setScalar(0.75);
-const pulseRing = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48), new THREE.MeshBasicMaterial({ color: '#7d97ff', transparent: true, depthWrite: false, side: THREE.DoubleSide }));
-pulseRing.rotation.x = -Math.PI / 2;
-pulseRing.position.y = 0.3;
-for (const o of [gate, exitPad, entryPad, shieldMesh, pulseRing, ...droneMeshes]) { o.visible = false; scene.add(o); }
+const pulseRing = new THREE.Mesh(new THREE.RingGeometry(0.78, 1, 64), new THREE.MeshBasicMaterial({ color: '#b4c4ff', transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+const pulseDisc = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: '#7d97ff', transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+for (const m of [pulseRing, pulseDisc]) m.rotation.x = -Math.PI / 2;
+pulseRing.position.y = 0.35;
+pulseDisc.position.y = 0.3;
+for (const o of [gate, exitPad, entryPad, shieldMesh, pulseRing, pulseDisc, ...droneMeshes]) { o.visible = false; scene.add(o); }
 
 // Uplink zone: hold it to charge the exit gate. The ring fills, the beam climbs, the gem spins up.
 const UPLINK_R = 4.5;
@@ -2444,7 +2450,7 @@ const upFill = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: '#56
 for (const m of [upRing, upFill]) m.rotation.x = -Math.PI / 2;
 upRing.position.y = 0.06;
 upFill.position.y = 0.05;
-const upGem = new THREE.Mesh(crawlerGeo, new THREE.MeshBasicMaterial({ color: '#56e8ff' }));
+const upGem = new THREE.Mesh(crawlerGeo, new THREE.MeshBasicMaterial({ color: '#56e8ff', transparent: true }));
 upGem.position.y = 3.2;
 upGem.scale.setScalar(0.7);
 const upBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1, 8, 1, true), new THREE.MeshBasicMaterial({ color: '#56e8ff', transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -2467,12 +2473,12 @@ function makeBar(w) {
 
 // Player health over the tank: a segment per heart, armour charges in cyan.
 const pbar = new THREE.Group();
-const pbarBg = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: '#14172b', depthTest: false }));
+const pbarBg = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: '#14172b', transparent: true, depthTest: false }));
 pbarBg.renderOrder = 12;
 pbar.add(pbarBg);
 const pbarSegs = [];
 for (let i = 0; i < 12; i++) {
-  const m = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: '#ff4b5c', depthTest: false }));
+  const m = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: '#ff4b5c', transparent: true, depthTest: false }));
   m.renderOrder = 13;
   m.position.z = 0.01;
   pbar.add(m);
@@ -2480,7 +2486,8 @@ for (let i = 0; i < 12; i++) {
 }
 pbar.visible = false;
 scene.add(pbar);
-let pbarSig = '';
+let pbarSig = '', pbarT = 0;
+const PBAR_SHOW = 2.5;   // seconds the bar stays up after hearts or armour change
 
 // Floating signs that name the uplink and the gate.
 function makeLabel(text, color) {
@@ -2569,11 +2576,12 @@ function clearRogue() {
   RG.enemies = []; RG.pickups = []; RG.boss = null; RG.target = null; RG.uplink = null;
   pbs = []; ebs = []; orbs = [];
   ebCore.count = ebGlow.count = pbMesh.count = orbMesh.count = mazeMesh.count = 0;
-  for (const o of [gate, exitPad, entryPad, shieldMesh, pulseRing, uplink, pbar, ...droneMeshes]) o.visible = false;
+  for (const o of [gate, exitPad, entryPad, shieldMesh, pulseRing, pulseDisc, uplink, pbar, ...droneMeshes]) o.visible = false;
   player.mesh.userData.turret.rotation.y = 0;
   ui.hurt.classList.remove('low');
   hudCache.lowHp = false;
   pbarSig = '';
+  pbarT = 0;
 }
 
 // ============================================================
@@ -2739,6 +2747,8 @@ function buildMaze(depth) {
   if (RG.uplink) {
     uplink.position.set(RG.uplink.x, 0, RG.uplink.z);
     uplink.visible = true;
+    uplink.scale.setScalar(1);
+    upFill.material.opacity = 0.25; upBeam.material.opacity = 0.35; upGem.material.opacity = 1;
   }
   RG.mazeTime = 0; RG.raids = 0; RG.waveT = 1.2; RG.inUplink = false;
 
@@ -3512,22 +3522,40 @@ function updateEquipment(dt, active) {
   }
 }
 function emitPulse() {
-  const p = player, st = RG.st;
-  clearBulletsNear(p.x, p.z, st.pulseR);
-  for (const e of RG.enemies) if (e.alive && Math.hypot(e.x - p.x, e.z - p.z) < st.pulseR + e.r) damageEnemy(e, st.damage * 2, false, e.x, e.z);
+  const p = player, st = RG.st, R = st.pulseR;
+  clearBulletsNear(p.x, p.z, R);
+  for (const e of RG.enemies) {
+    if (!e.alive) continue;
+    const dx = e.x - p.x, dz = e.z - p.z, d = Math.hypot(dx, dz) || 0.001;
+    if (d > R + e.r) continue;
+    damageEnemy(e, st.damage * 2, false, e.x, e.z);
+    // Movers get shoved back by the blast.
+    if (e.alive && e.def.speed && e.kind !== 'boss') {
+      const k = 1 + 3 * (1 - d / (R + e.r));
+      e.x += dx / d * k; e.z += dz / d * k;
+      collideWalls(e, e.r);
+    }
+  }
   RG.pulseAnim = 0;
-  RG.pulseR = st.pulseR;
-  addShake(0.2);
+  RG.pulseR = R;
+  flash(p.x, 1.4, p.z, 3, '#b4c4ff', 0.3);
+  addShake(0.3);
   audio.pulse();
+  const slot = rui.slots.children[RG.equip.findIndex((e) => e.id === 'pulse')];
+  if (slot) restartAnim(slot, 'fired');
 }
-
 function openExit(why = '') {
   if (RG.exitOpen) return;
   RG.exitOpen = true;
   gateLocked.visible = false;
   gateOpen.visible = true;
   RG.inUplink = false;
-  if (RG.uplink) RG.uplink.charge = 1;
+  if (RG.uplink) {
+    const u = RG.uplink;
+    u.charge = 1;
+    flash(u.x, 2.5, u.z, 7, '#6cf0a0', 0.5);
+    burst(u.x, 2, u.z, ['#6cf0a0', '#56e8ff', '#ffffff'], 18, 10, 0.35);
+  }
   for (const o of orbs) o.pull = true;   // sweep up every orb left on the map, so holding the zone never wastes experience
   RG.exitFlow = mazeDist(RG.maze, RG.exitCell);
   exitPad.material.color.set('#6cf0a0');
@@ -3560,7 +3588,7 @@ function spawnRaid() {
 }
 function updateUplink(dt, active) {
   const u = RG.uplink;
-  if (!u) return;
+  if (!u || !uplink.visible) return;
   RG.inUplink = active && !RG.exitOpen && Math.hypot(player.x - u.x, player.z - u.z) < UPLINK_R;
   if (RG.inUplink) {
     addCharge(dt / u.need);
@@ -3572,14 +3600,26 @@ function updateUplink(dt, active) {
   }
   upLabel.visible = !RG.exitOpen && !RG.inUplink;
   const c = RG.exitOpen ? 1 : u.charge, col = RG.exitOpen ? '#6cf0a0' : '#56e8ff';
-  upFill.scale.setScalar(Math.max(0.01, UPLINK_R * c));
-  upRing.material.opacity = RG.inUplink ? 0.6 + Math.sin(G.stateTime * 10) * 0.3 : 0.75;
+  if (u.col !== col) { u.col = col; for (const mm of [upRing, upFill, upGem, upBeam]) mm.material.color.set(col); }
   upGem.rotation.y += dt * (1.5 + c * 8);
   upGem.position.y = 3.2 + Math.sin(G.stateTime * 3) * 0.2;
   const h = 1 + c * 26;
   upBeam.scale.set(1, h, 1);
   upBeam.position.y = 3.2 + h / 2;
-  if (u.col !== col) { u.col = col; for (const mm of [upRing, upFill, upGem, upBeam]) mm.material.color.set(col); }
+  upFill.scale.setScalar(Math.max(0.01, UPLINK_R * c));
+  if (!RG.exitOpen) {
+    upRing.material.opacity = RG.inUplink ? 0.6 + Math.sin(G.stateTime * 10) * 0.3 : 0.75;
+    return;
+  }
+  // Job done (charged, or nobody left to fight): the uplink collapses and fades away.
+  u.fade = Math.max(0, (u.fade ?? 1) - dt / 1.2);
+  const f = u.fade, e = f * f * (3 - 2 * f);
+  uplink.scale.setScalar(Math.max(0.001, e));
+  upRing.material.opacity = 0.75 * f;
+  upFill.material.opacity = 0.25 * f;
+  upBeam.material.opacity = 0.35 * f;
+  upGem.material.opacity = f;
+  if (f <= 0) uplink.visible = false;
 }
 function updateGate() {
   gateField.material.opacity = (RG.exitOpen ? 0.55 : 0.32) + Math.sin(G.stateTime * 6) * 0.12;
@@ -3844,7 +3884,7 @@ function updateRogue(dt) {
   updateGate();
   renderRogue(dt);
   updateRogueCamera(dt);
-  updatePlayerBar();
+  updatePlayerBar(dt);
   updateRogueGuide();
   updateRogueHud();
   const on = G.state === 'play' || G.state === 'countdown' || G.state === 'clear';
@@ -3929,21 +3969,21 @@ function renderRogue(dt) {
   }
 
   if (RG.pulseAnim < 1) {
-    RG.pulseAnim += dt / 0.35;
-    pulseRing.visible = RG.pulseAnim < 1;
-    pulseRing.position.x = player.x; pulseRing.position.z = player.z;
-    pulseRing.scale.setScalar(Math.max(0.01, RG.pulseR * RG.pulseAnim));
-    pulseRing.material.opacity = 0.7 * (1 - RG.pulseAnim);
+    RG.pulseAnim = Math.min(1, RG.pulseAnim + dt / 0.5);
+    const t = RG.pulseAnim, grow = Math.max(0.01, RG.pulseR * (1 - Math.pow(1 - t, 3)));
+    pulseRing.visible = pulseDisc.visible = t < 1;
+    for (const m of [pulseRing, pulseDisc]) { m.position.x = player.x; m.position.z = player.z; m.scale.setScalar(grow); }
+    pulseRing.material.opacity = 0.95 * (1 - t);
+    pulseDisc.material.opacity = 0.32 * (1 - t) * (1 - t);
   }
 }
 
-function updatePlayerBar() {
-  const show = G.mode === 'rogue' && (G.state === 'play' || G.state === 'countdown' || G.state === 'clear');
-  pbar.visible = show;
-  if (!show) return;
+function updatePlayerBar(dt) {
+  if (G.mode !== 'rogue' || !(G.state === 'play' || G.state === 'countdown' || G.state === 'clear')) { pbar.visible = false; return; }
   const st = RG.st, max = st.maxHearts, n = max + st.armorMax;
   const sig = `${RG.hearts}/${max}/${RG.armor}/${st.armorMax}`;
   if (sig !== pbarSig) {
+    if (pbarSig) pbarT = PBAR_SHOW;   // a real change, not the first look at a new maze
     pbarSig = sig;
     const gap = 0.12, segW = Math.min(0.8, (5.6 - gap * (n - 1)) / n), total = n * segW + (n - 1) * gap;
     pbarBg.scale.set(total + 0.3, 0.7, 1);
@@ -3956,9 +3996,16 @@ function updatePlayerBar() {
       m.material.color.set(armorSeg ? (on ? '#56e8ff' : '#2a3a48') : (on ? '#ff4b5c' : '#3a3f55'));
     });
   }
+  pbarT = Math.max(0, pbarT - dt);
+  pbar.visible = pbarT > 0;
+  if (!pbar.visible) return;
+  const op = Math.min(1, pbarT / 0.6), age = PBAR_SHOW - pbarT;
+  pbarBg.material.opacity = 0.9 * op;
+  for (const m of pbarSegs) m.material.opacity = op;
   pbar.position.set(player.x, 3.8, player.z);
   pbar.quaternion.copy(camera.quaternion);
-  pbar.scale.setScalar(RG.hearts === 1 ? 1 + Math.sin(G.stateTime * 10) * 0.1 : 1);   // pulse one hit from the end
+  // Pops in, and throbs when one hit from the end.
+  pbar.scale.setScalar((age < 0.15 ? 1.25 - age / 0.15 * 0.25 : 1) * (RG.hearts === 1 ? 1 + Math.sin(G.stateTime * 10) * 0.1 : 1));
 }
 
 // High, north-up camera so shots from every side stay in view.
@@ -4060,6 +4107,15 @@ function updateRogueHud() {
       rui.slots.appendChild(d);
     }
   }
+  RG.equip.forEach((e, i) => {
+    let cd = -1;
+    if (e.id === 'pulse') cd = 1 - clamp(RG.pulseT / st.pulseEvery, 0, 1);
+    else if (e.id === 'armor') cd = RG.armor >= st.armorMax ? 1 : 1 - clamp(RG.armorT / st.armorRecharge, 0, 1);
+    const el = rui.slots.children[i];
+    if (cd < 0 || !el) return;
+    const v = cd.toFixed(2);
+    if (el.dataset.cd !== v) { el.dataset.cd = v; el.style.setProperty('--cd', v); el.classList.toggle('charging', v !== '1.00'); }
+  });
   const skillSig = Object.values(RG.skills).join(',');
   if (skillSig !== RG.stripSig) { RG.stripSig = skillSig; renderStrip(rui.skills, true); }
 
@@ -4328,7 +4384,7 @@ showTitle();
 $('loading').remove();
 requestAnimationFrame((t) => { last = t; frame(t); });
 // Debug handle for poking at the game from the browser console.
-window.__pytank = { G, RG, player, input, get targets() { return targets; }, get ebs() { return ebs; }, get pbs() { return pbs; }, startWave, buildMaze };
+window.__pytank = { G, RG, player, input, pbar, uplink, get targets() { return targets; }, get ebs() { return ebs; }, get pbs() { return pbs; }, startWave, buildMaze };
 </script>
 </body>
 </html>

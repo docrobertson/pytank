@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Pytank</title>
-<meta name="description" content="A 3D tank target-practice game inspired by Atari Combat. Runs in the browser on desktop and mobile.">
+<meta name="description" content="A 3D tank game inspired by Atari Combat, with Arcade and Bullet Rogue modes. Runs in the browser on desktop and mobile.">
 <meta name="theme-color" content="#14172b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -20,7 +20,9 @@
     --gold: #f2c53d;       /* player tank, score */
     --hot: #ff6a2b;        /* fire button, low timer, alerts */
     --steel: #6c8cff;      /* enemy tanks, bank shots */
-    --mint: #6cf0a0;       /* time bonuses */
+    --mint: #6cf0a0;       /* time bonuses, experience */
+    --violet: #b86cff;     /* Bullet Rogue accent, boss */
+    --steel-2: #56e8ff;    /* uplink charge */
     --panel: rgba(12, 14, 28, 0.66);
     --line: rgba(246, 238, 210, 0.18);
     --shade: rgba(0, 0, 0, 0.55);
@@ -45,6 +47,8 @@
   #fade { position: fixed; inset: 0; background: var(--night); opacity: 0; pointer-events: none; z-index: 8; }
   #hurt { position: fixed; inset: 0; pointer-events: none; z-index: 3; opacity: 0;
     box-shadow: inset 0 0 120px 30px var(--hot); }
+  #hurt.low { animation: lowpulse 1.1s ease-in-out infinite; }
+  @keyframes lowpulse { 0%, 100% { opacity: 0.12; } 50% { opacity: 0.5; } }
 
   /* ---------- HUD ---------- */
   #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
@@ -80,6 +84,7 @@
   .wave-row { display: flex; gap: 10px; align-items: baseline; font: 700 13px/1 var(--f-pixel); letter-spacing: 0.08em; }
   .wave-row b { color: var(--gold); }
   .wave-row span { white-space: nowrap; }
+  #shotsBox.over { opacity: 0.4; text-decoration: line-through; }
   #radar { width: 112px; height: 112px; display: block; }
   .hud-btns { display: flex; gap: 6px; pointer-events: auto; }
   .hud-btn {
@@ -146,9 +151,6 @@
   }
   .sub { font: 700 13px/1 var(--f-pixel); letter-spacing: 0.24em; }
   .card-body { padding: 16px 20px 20px; display: grid; gap: 14px; }
-  .rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; font: 500 15px/1.35 var(--f-body); }
-  .rules li { display: grid; grid-template-columns: 14px 1fr; gap: 8px; }
-  .rules li::before { content: ""; width: 8px; height: 8px; margin-top: 6px; background: var(--gold); }
   .controls { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; font: 500 13px/1.2 var(--f-body);
     border-top: 1px solid var(--line); padding-top: 12px; }
   .controls .k { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -171,11 +173,123 @@
   .stats b { font: 700 20px/1 var(--f-pixel); color: var(--gold); font-variant-numeric: tabular-nums; }
   .newbest { color: var(--mint); animation: blink 0.6s steps(2, jump-none) infinite; }
   #over .card-body, #pause .card-body { padding-top: 22px; }
+  /* ---------- Mode select ---------- */
+  body.mode-rogue .only-arcade, body:not(.mode-rogue) .only-rogue { display: none !important; }
+  .modes { display: grid; gap: 10px; }
+  .mode {
+    display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 6px 12px; text-align: left;
+    padding: 13px 15px 12px; border: 2px solid var(--ink); border-radius: 4px; background: var(--night); box-shadow: 0 5px 0 var(--ink);
+  }
+  .mode:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+  .mode-name { font: 25px/1 var(--f-display); letter-spacing: 0.04em; color: var(--hot); }
+  .mode.rogue .mode-name { color: var(--violet); }
+  .mode-best { font: 700 11px/1 var(--f-pixel); letter-spacing: 0.12em; opacity: 0.85; white-space: nowrap; }
+  .mode-best b { color: var(--gold); }
+  .mode-desc { grid-column: 1 / -1; font: 500 14px/1.35 var(--f-body); }
+
+  /* ---------- Bullet Rogue HUD ---------- */
+  .hearts { font: 19px/1 var(--f-body); letter-spacing: 1px; white-space: nowrap; color: #ff4b5c; text-shadow: 0 2px 0 var(--shade); }
+  .hearts .empty { color: var(--line); text-shadow: none; }
+  .hearts .armor { color: var(--mint); margin-left: 4px; }
+  .xp-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font: 700 12px/1 var(--f-pixel); letter-spacing: 0.08em; }
+  .xp-row b { color: var(--gold); }
+  .xp-row span { white-space: nowrap; }
+  .xp-row i { display: block; width: 92px; height: 6px; background: var(--line); }
+  #rXp { display: block; height: 100%; background: var(--mint); transform-origin: left; }
+  .slots { display: flex; gap: 5px; }
+  .slot {
+    position: relative; width: 32px; height: 32px; border-radius: 3px; border: 1px solid var(--line); display: grid; place-items: center;
+    font: 700 14px/1 var(--f-pixel); color: var(--night); background: var(--panel);
+  }
+  .slot.empty { border-style: dashed; }
+  .slot.charging::after { content: ""; position: absolute; inset: 0; border-radius: 2px; background: conic-gradient(transparent calc(var(--cd, 1) * 360deg), rgba(20, 23, 43, 0.65) 0); }
+  .slot.fired { animation: slotfire 0.4s ease-out; }
+  @keyframes slotfire { from { transform: scale(1.25); box-shadow: 0 0 0 4px var(--steel); } to { transform: none; box-shadow: none; } }
+  .slot svg { width: 19px; height: 19px; margin-bottom: 3px; }
+  .slot i { position: absolute; left: 0; right: 0; bottom: 1px; text-align: center; font-style: normal; font-size: 9px; line-height: 1; letter-spacing: 1px; }
+  .rogue-mid { display: grid; gap: 5px; justify-items: center; }
+  #rDepth { font: 34px/1 var(--f-display); text-shadow: 0 3px 0 var(--shade); white-space: nowrap; }
+  #rGoal { font: 700 11px/1 var(--f-pixel); letter-spacing: 0.14em; color: var(--gold); text-shadow: 0 2px 0 var(--shade); white-space: nowrap; }
+  #rGoal.open { color: var(--mint); animation: blink 0.6s steps(2, jump-none) infinite; }
+  #bossBar { width: min(240px, 42vw); height: 8px; background: var(--panel); border: 1px solid var(--line); }
+  #bossFill { display: block; height: 100%; background: var(--violet); transform-origin: left; }
+  #dashBtn {
+    position: absolute; width: 96px; height: 96px; border-radius: 50%; pointer-events: none;
+    right: max(28px, calc(env(safe-area-inset-right, 0px) + 16px)); bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+    display: grid; place-items: center; font: 19px/1 var(--f-display); letter-spacing: 0.06em; color: var(--ink);
+    background: conic-gradient(var(--steel) calc(var(--cd, 1) * 360deg), var(--panel) 0); border: 2px solid var(--line);
+  }
+  #dashBtn.ready { color: var(--night); border-color: var(--ink); }
+  #dashBtn.down { animation: press 0.15s ease-out; }
+  @keyframes press { from { transform: scale(0.88); } to { transform: scale(1); } }
+
+  /* ---------- Level-up cards ---------- */
+  #levelup { background: rgba(8, 9, 18, 0.6); }
+  .lu { width: min(780px, 100%); margin: auto; display: grid; gap: 12px; justify-items: center; }
+  .lu h2 { margin: 0; font: clamp(40px, 10vw, 64px)/1 var(--f-display); color: var(--gold); text-shadow: 0 4px 0 var(--shade); }
+  .lu p { margin: 0; font: 700 12px/1.3 var(--f-pixel); letter-spacing: 0.16em; text-align: center; }
+  .cards { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .upg {
+    display: grid; grid-template-columns: 46px minmax(0, 1fr); grid-template-areas: "ico tag" "ico nm" "ds ds" "chg chg" "pips pips";
+    gap: 6px 12px; align-content: start; text-align: left; padding: 14px; border: 2px solid var(--ink); border-radius: 5px;
+    background: var(--night); box-shadow: 0 6px 0 var(--ink); animation: deal 0.3s cubic-bezier(.2, 1.4, .4, 1) both;
+  }
+  .upg:nth-child(2) { animation-delay: 0.06s; }
+  .upg:nth-child(3) { animation-delay: 0.12s; }
+  .upg:hover, .upg:focus-visible { border-color: var(--gold); }
+  .upg:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+  @keyframes deal { from { opacity: 0; transform: translateY(24px) scale(0.92); } to { opacity: 1; transform: none; } }
+  .upg .ico { grid-area: ico; width: 46px; height: 46px; border-radius: 4px; display: grid; place-items: center; font: 24px/1 var(--f-display); color: var(--night); }
+  .upg .tag { grid-area: tag; align-self: end; font: 700 10px/1 var(--f-pixel); letter-spacing: 0.14em; color: var(--gold); }
+  .upg .nm { grid-area: nm; font: 21px/1.05 var(--f-display); }
+  .upg .ds { grid-area: ds; font: 500 14px/1.35 var(--f-body); }
+  .upg .ico svg { width: 28px; height: 28px; }
+  .upg .chg { grid-area: chg; font: 700 11px/1.35 var(--f-pixel); letter-spacing: 0.05em; color: var(--mint); }
+  .upg .pips { grid-area: pips; font: 12px/1 var(--f-body); letter-spacing: 3px; color: var(--gold); }
+  .lu-foot { width: 100%; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+  .reroll { width: auto; padding: 10px 16px; }
+  .strip { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+  .chip-ico { display: inline-flex; align-items: center; gap: 3px; font: 700 11px/1 var(--f-pixel); }
+  .chip-ico .ico { width: 20px; height: 20px; border-radius: 3px; display: grid; place-items: center; color: var(--night); }
+  .chip-ico .ico svg { width: 14px; height: 14px; }
+  .hud-strip { justify-content: flex-start; max-width: 230px; pointer-events: auto; }
+  .streak { color: var(--mint); }
+  .loadout-wrap { display: grid; gap: 8px; }
+  .lo-title { font: 700 11px/1 var(--f-pixel); letter-spacing: 0.18em; color: var(--gold); }
+  .lo-stats { font: 700 10px/1.6 var(--f-pixel); letter-spacing: 0.06em; opacity: 0.85; }
+  .loadout { display: grid; gap: 7px; }
+  body.mode-rogue #pause .card { width: min(680px, 100%); }
+  body.mode-rogue #pause h2 { font-size: clamp(34px, 9vw, 52px); }
+  @media (min-width: 700px) { .loadout { grid-template-columns: 1fr 1fr; gap: 9px 18px; } }
+  .lo-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; grid-template-areas: "ico nm rk" "ico fx fx"; gap: 2px 10px; align-items: center; }
+  .lo-row .ico { grid-area: ico; width: 28px; height: 28px; border-radius: 4px; display: grid; place-items: center; color: var(--night); }
+  .lo-row .ico svg { width: 18px; height: 18px; }
+  .lo-row .nm { grid-area: nm; font: 700 14px/1.1 var(--f-body); }
+  .lo-row .rk { grid-area: rk; font: 700 10px/1 var(--f-pixel); letter-spacing: 0.08em; color: var(--gold); }
+  .lo-row .fx { grid-area: fx; font: 500 12px/1.3 var(--f-body); opacity: 0.85; }
+  .lo-empty { margin: 0; font: 500 13px/1.4 var(--f-body); opacity: 0.8; }
+  @media (max-width: 699px) { .hud-strip { display: none !important; } }
+  .build { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .chip { font: 700 10px/1 var(--f-pixel); letter-spacing: 0.08em; padding: 5px 7px 4px; border-radius: 3px; color: var(--night); }
+
   #loading { position: fixed; inset: 0; display: grid; place-items: center; z-index: 20; background: var(--night);
     font: 700 13px/1.5 var(--f-pixel); letter-spacing: 0.18em; text-align: center; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 
+  @media (max-width: 640px) {
+    .cards { grid-template-columns: 1fr; gap: 9px; }
+    .upg { padding: 11px 12px; }
+  }
   @media (max-width: 560px) {
     .wave-row { flex-direction: column; align-items: flex-end; gap: 4px; }
+    #rDepth { font-size: 27px; }
+    .hearts { font-size: 15px; white-space: normal; overflow-wrap: anywhere; max-width: 112px; }
+    #rGoal { font-size: 10px; letter-spacing: 0.08em; }
+    #bossBar { width: 28vw; }
+    .lo-row .nm { font-size: 13px; }
+    .lo-row .fx { font-size: 11px; }
+    .slot { width: 28px; height: 28px; }
+    .xp-row i { width: 64px; }
+    #dashBtn { width: 84px; height: 84px; }
     #timer { font-size: 36px; }
     #score { font-size: 17px; }
     #radar { width: 86px; height: 86px; }
@@ -187,23 +301,31 @@
     #banner { top: 26%; }
     #stick, #fireBtn { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
     .card-body { gap: 10px; padding-block: 14px; }
-    .rules { font-size: 13px; gap: 5px; }
-    .rules li::before { margin-top: 5px; }
     .controls { font-size: 12px; padding-top: 8px; }
     .cta { padding-block: 11px 9px; font-size: 21px; }
     .card h2 { font-size: 40px; }
+    .lu h2 { font-size: 34px; }
+    .upg { padding: 9px 11px; gap: 4px 10px; }
+    .upg .ds { font-size: 13px; }
+    #dashBtn { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
   }
   /* Short landscape phones: title card goes side by side so START stays on screen. */
   @media (max-height: 500px) and (min-aspect-ratio: 4/3) {
     #title .card { width: min(820px, 100%); display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
     #title .label-art { border-bottom: 0; border-right: 3px solid var(--ink); display: grid; align-content: center; }
     #title h1 { font-size: clamp(48px, 9vw, 76px); }
+    #title .controls { display: none !important; }
+    .mode { padding: 10px 13px; }
+    .mode-name { font-size: 21px; }
+    .mode-desc { font-size: 13px; }
     #over .card, #pause .card { width: min(560px, 100%); }
   }
   @media (prefers-reduced-motion: reduce) {
     #banner.show { animation: none; opacity: 1; }
   #banner.hide { animation: none; opacity: 0; }
-    #timer.low, #timer.gain, #combo.bump { animation: none; }
+    #timer.low, #timer.gain, #combo.bump, #rGoal.open, .upg, #dashBtn.down { animation: none; }
+    #hurt.low { animation: none; opacity: 0.3; }
+    .slot.fired { animation: none; }
   }
 </style>
 </head>
@@ -216,23 +338,35 @@
 <div id="hud" hidden>
   <div class="hud-top">
     <div class="cell left">
-      <div class="plate">
+      <div class="plate only-arcade">
         <div class="label">SCORE</div>
         <div id="score">000000</div>
         <div id="combo" hidden><span id="comboText">COMBO x2</span><i id="comboBar"></i></div>
       </div>
+      <div class="plate only-rogue">
+        <div class="hearts"><span id="heartsFull"></span><span id="heartsEmpty" class="empty"></span><span id="armorPips" class="armor"></span></div>
+        <div class="xp-row"><span>LV <b id="rLevel">1</b></span><i><b id="rXp"></b></i></div>
+      </div>
+      <div id="slots" class="slots only-rogue"></div>
+      <div id="skillRow" class="strip hud-strip only-rogue"></div>
       <div class="hud-btns">
         <button id="btnPause" class="hud-btn" aria-label="Pause">II</button>
         <button id="btnSound" class="hud-btn" aria-label="Sound: music and effects">&#9834;</button>
       </div>
     </div>
     <div class="cell mid">
-      <div id="timer">30</div>
-      <div id="power" hidden><span id="powerName">RAPID</span><i><b id="powerBar"></b></i></div>
+      <div id="timer" class="only-arcade">30</div>
+      <div id="power" class="only-arcade" hidden><span id="powerName">RAPID</span><i><b id="powerBar"></b></i></div>
+      <div class="rogue-mid only-rogue">
+        <div id="rDepth">MAZE 1</div>
+        <div id="rGoal">CORES 0/2</div>
+        <div id="bossBar" hidden><b id="bossFill"></b></div>
+      </div>
     </div>
     <div class="cell right">
-      <div class="plate wave-row"><span>WAVE <b id="wave">1</b></span><span><b id="left">6</b> LEFT</span></div>
-      <canvas id="radar" width="112" height="112" aria-label="Radar"></canvas>
+      <div class="plate wave-row only-arcade"><span>WAVE <b id="wave">1</b></span><span><b id="left">6</b> LEFT</span><span id="shotsBox">SHOTS <b id="shots">0/12</b></span></div>
+      <div class="plate wave-row only-rogue"><span>KILLS <b id="rKills">0</b></span><span id="rStreak" class="streak" hidden></span><span id="rStreakX" class="streak" hidden></span></div>
+      <canvas id="radar" width="112" height="112" aria-label="Map"></canvas>
     </div>
   </div>
 </div>
@@ -241,34 +375,39 @@
 
 <div id="touch" hidden>
   <div id="stick"><div id="knob"></div><div class="stick-hint">DRIVE</div></div>
-  <div id="fireBtn">FIRE</div>
+  <div id="fireBtn" class="only-arcade">FIRE</div>
+  <div id="dashBtn" class="only-rogue">DASH</div>
 </div>
 
 <section id="title" class="overlay" hidden>
   <div class="card">
     <div class="label-art">
-      <div class="kicker">GAME 1 &middot; TANK</div>
+      <div class="kicker">GAME SELECT</div>
       <h1>PYTANK</h1>
-      <div class="sub">TARGET PRACTICE</div>
+      <div class="sub">TANK COMBAT</div>
     </div>
     <div class="card-body">
-      <ul class="rules">
-        <li>Destroy every target before the clock runs out.</li>
-        <li>Shells ricochet once. Bank shots score extra.</li>
-        <li>Red barrels explode and take out anything nearby.</li>
-        <li>Each wave is bigger and faster. From wave 5 they shoot back.</li>
-      </ul>
+      <div class="modes">
+        <button id="btnArcade" class="mode">
+          <span class="mode-name">ARCADE</span>
+          <span class="mode-best">BEST <b id="bestArcade">0</b></span>
+          <span class="mode-desc">Blast every target before the clock runs out. Ram crates, mind the barrels, and save shots for a sharpshooter bonus.</span>
+        </button>
+        <button id="btnRogue" class="mode rogue">
+          <span class="mode-name">BULLET ROGUE</span>
+          <span class="mode-best">DEEPEST <b id="bestRogue">&ndash;</b></span>
+          <span class="mode-desc">Your turret fires itself. Dodge the bullet storm, hold the uplink to open each exit, and build up your tank as you dive deeper.</span>
+        </button>
+      </div>
       <div class="controls only-keys">
-        <span class="k"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Drive and turn (arrow keys work too)</span>
-        <span class="k"><kbd>SPACE</kbd></span><span>Fire (hold for auto-fire)</span>
+        <span class="k"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Drive (arrow keys work too)</span>
+        <span class="k"><kbd>SPACE</kbd></span><span>Arcade: fire &middot; Rogue: dash</span>
         <span class="k"><kbd>P</kbd><kbd>M</kbd></span><span>Pause, sound</span>
       </div>
       <div class="controls only-touch">
-        <span class="k"><kbd>LEFT</kbd></span><span>Thumb anywhere on the left half to drive and turn</span>
-        <span class="k"><kbd>RIGHT</kbd></span><span>Hold anywhere on the right half to fire</span>
+        <span class="k"><kbd>THUMB</kbd></span><span>Drag to drive (left half in Arcade)</span>
+        <span class="k"><kbd>TAP</kbd></span><span>Arcade: hold the right half to fire &middot; Rogue: tap a second finger to dash</span>
       </div>
-      <button id="btnStart" class="cta">START</button>
-      <div class="best">BEST <b id="bestTitle">0</b></div>
     </div>
   </div>
 </section>
@@ -277,6 +416,11 @@
   <div class="card">
     <div class="card-body">
       <h2 style="color: var(--ink)">PAUSED</h2>
+      <div class="loadout-wrap only-rogue">
+        <div class="lo-title">LOADOUT</div>
+        <div id="loStats" class="lo-stats"></div>
+        <div id="loadout" class="loadout"></div>
+      </div>
       <button id="btnResume" class="cta">RESUME</button>
       <button id="btnQuit" class="ghost">QUIT TO TITLE</button>
     </div>
@@ -286,16 +430,24 @@
 <section id="over" class="overlay" hidden>
   <div class="card">
     <div class="card-body">
-      <h2>TIME UP</h2>
-      <div class="stats">
-        <div><span>SCORE</span><b id="oScore">0</b></div>
-        <div><span>WAVE</span><b id="oWave">1</b></div>
-        <div><span>TARGETS</span><b id="oKills">0</b></div>
-        <div><span>BEST COMBO</span><b id="oCombo">x1</b></div>
-      </div>
+      <h2 id="oTitle">TIME UP</h2>
+      <div id="oStats" class="stats"></div>
+      <div id="oBuild" class="build" hidden></div>
       <div id="oBest" class="best"></div>
       <button id="btnAgain" class="cta">PLAY AGAIN</button>
       <button id="btnMenu" class="ghost">TITLE</button>
+    </div>
+  </div>
+</section>
+
+<section id="levelup" class="overlay" hidden>
+  <div class="lu">
+    <h2 id="luTitle">LEVEL 2</h2>
+    <p id="luSub">CHOOSE ONE</p>
+    <div id="cards" class="cards"></div>
+    <div class="lu-foot">
+      <div id="luBuild" class="strip"></div>
+      <button id="btnReroll" class="ghost reroll">REROLL</button>
     </div>
   </div>
 </section>
@@ -349,6 +501,7 @@ const SHELL_SPEED = 54;
 const SHELL_LIFE = 1.5;
 const ENEMY_SHELL_SPEED = 24;
 const COMBO_WINDOW = 2.5;
+const SHOTS_PER_TARGET = 2;   // clear a wave within this many shots per target for the Sharpshooter bonus
 const SPAWN = { x: 0, z: -38 };
 
 // Tank handling. Speeds in units/s, accelerations in units/s², turning in rad/s and rad/s².
@@ -361,6 +514,8 @@ const DRIVE = {
   spinDown: 18,      // angular deceleration out of a turn
   turnAtSpeed: 0.8,  // turn rate at top speed relative to pivoting in place
 };
+const CRUSH_SPEED = 6;    // driving into a crate faster than this flattens it
+const BLAST_HIT_R = 5;    // a barrel blast this close counts as a hit
 // Aim assist: extra cone (radians) beyond a target's own width that still pulls the shot onto it.
 const ASSIST = { touch: 0.075, other: 0.04, range: 48 };
 
@@ -541,11 +696,16 @@ function makeTank(body, dark) {
   const hull = new THREE.Group();
   hull.position.y = 0.8;
   hull.add(part(body, 1.75, 0.7, 3.0, 0, 0.05, 0));
-  hull.add(part(dark, 1.35, 0.62, 1.45, 0, 0.7, -0.2));
-  const barrel = part(dark, 0.34, 0.34, 1.9, 0, 0.7, 1.35);
-  hull.add(barrel);
+  // The turret turns on its own in Bullet Rogue; in Arcade it stays locked forward.
+  const turret = new THREE.Group();
+  turret.position.set(0, 0.7, -0.2);
+  turret.add(part(dark, 1.35, 0.62, 1.45, 0, 0, 0));
+  const barrel = part(dark, 0.34, 0.34, 1.9, 0, 0, 1.55);
+  turret.add(barrel);
+  hull.add(turret);
   g.add(hull);
   g.userData.hull = hull;
+  g.userData.turret = turret;
   g.userData.barrel = barrel;
   return g;
 }
@@ -609,12 +769,13 @@ const player = {
 scene.add(player.mesh);
 
 const G = {
-  state: 'loading',   // loading | title | countdown | play | clear | over | paused
+  state: 'loading',   // loading | title | countdown | play | clear | over | paused | levelup
   prevState: null,
+  mode: 'arcade', lastMode: 'arcade',
   wave: 1, cfg: waveConfig(1), palette: PALETTES[0],
   score: 0, kills: 0, timeLeft: 0, remaining: 0,
   combo: 0, comboTimer: 0, bestCombo: 0,
-  stateTime: 0, bonusSpawned: false, lastSecond: 99, waveHits: 0,
+  stateTime: 0, bonusSpawned: false, lastSecond: 99, waveHits: 0, shots: 0, waveTargets: 6,
   shake: 0, hitstop: 0, dustColor: '#9aa86a', best: store.get('best', 0), soundMode: store.get('sound', 0),
   overShownAt: 0,
 };
@@ -625,14 +786,19 @@ function addWall(cx, cz, w, d) {
   walls.push({ x0: cx - w / 2, x1: cx + w / 2, z0: cz - d / 2, z1: cz + d / 2, mesh });
 }
 
-function buildArena(w) {
-  for (const wl of walls) scene.remove(wl.mesh);
+function clearArena() {
+  for (const wl of walls) if (wl.mesh) scene.remove(wl.mesh);
   walls.length = 0;
   for (const t of targets) scene.remove(t.mesh);
   for (const s of shells) scene.remove(s.mesh);
   for (const p of powerups) scene.remove(p.mesh);
   targets = []; shells = []; powerups = [];
   clearFx();
+}
+
+function buildArena(w) {
+  clearArena();
+  clearRogue();
 
   G.palette = PALETTES[(w - 1) % PALETTES.length];
   applyPalette(G.palette);
@@ -641,13 +807,34 @@ function buildArena(w) {
   LAYOUTS[li](rects);
   rects.push([0, A + 2, 2 * A + 8, 4], [0, -A - 2, 2 * A + 8, 4], [A + 2, 0, 4, 2 * A], [-A - 2, 0, 4, 2 * A]);
   for (const r of rects) addWall(...r);
+  indexWalls();
 }
 
 // ============================================================
 // Collision
 // ============================================================
-function clearOfWalls(x, z, r) {
+// Walls are bucketed on a coarse grid so a moving thing only checks the walls near it.
+const BUCKET = 8, BUCKET_PAD = 4;
+const NO_WALLS = [];
+let wallBuckets = new Map();
+const bucketKey = (ix, iz) => (ix + 512) * 1024 + (iz + 512);
+function indexWalls() {
+  wallBuckets = new Map();
   for (const w of walls) {
+    for (let ix = Math.floor((w.x0 - BUCKET_PAD) / BUCKET); ix <= Math.floor((w.x1 + BUCKET_PAD) / BUCKET); ix++) {
+      for (let iz = Math.floor((w.z0 - BUCKET_PAD) / BUCKET); iz <= Math.floor((w.z1 + BUCKET_PAD) / BUCKET); iz++) {
+        const k = bucketKey(ix, iz);
+        if (!wallBuckets.has(k)) wallBuckets.set(k, []);
+        wallBuckets.get(k).push(w);
+      }
+    }
+  }
+}
+// Every wall within BUCKET_PAD of the point (plus a few farther ones).
+const wallsNear = (x, z) => wallBuckets.get(bucketKey(Math.floor(x / BUCKET), Math.floor(z / BUCKET))) || NO_WALLS;
+
+function clearOfWalls(x, z, r) {
+  for (const w of (r < BUCKET_PAD ? wallsNear(x, z) : walls)) {
     const cx = clamp(x, w.x0, w.x1), cz = clamp(z, w.z0, w.z1);
     if ((x - cx) ** 2 + (z - cz) ** 2 < r * r) return false;
   }
@@ -657,7 +844,7 @@ function clearOfWalls(x, z, r) {
 // Pushes a circle out of every wall; returns the summed contact normal or null.
 function collideWalls(e, r) {
   let nx = 0, nz = 0, hit = false;
-  for (const w of walls) {
+  for (const w of wallsNear(e.x, e.z)) {
     const cx = clamp(e.x, w.x0, w.x1), cz = clamp(e.z, w.z0, w.z1);
     const dx = e.x - cx, dz = e.z - cz, d2 = dx * dx + dz * dz;
     if (d2 >= r * r) continue;
@@ -681,7 +868,7 @@ function collideWalls(e, r) {
 // Ray vs walls (slab test). Returns nearest { t, nx, nz } within maxT, or null.
 function raycastWalls(ox, oz, dx, dz, maxT, pad) {
   let best = maxT, hit = null;
-  for (const w of walls) {
+  for (const w of (maxT + pad < BUCKET_PAD ? wallsNear(ox, oz) : walls)) {
     const minX = w.x0 - pad, maxX = w.x1 + pad, minZ = w.z0 - pad, maxZ = w.z1 + pad;
     let tx0, tx1, tz0, tz1;
     if (Math.abs(dx) > 1e-9) {
@@ -781,7 +968,7 @@ function updateDebris(dt) {
     const k = p.life <= 0 ? 0 : Math.min(1, p.life / 0.35);
     dummy.position.set(p.x, p.y, p.z);
     dummy.rotation.set(p.rx, p.ry, 0);
-    dummy.scale.setScalar(p.s * k);
+    dummy.scale.setScalar(Math.max(0, p.s * k));
     dummy.updateMatrix();
     debMesh.setMatrixAt(i, dummy.matrix);
   }
@@ -983,6 +1170,7 @@ function updateGuide() {
   guide.visible = !!best;
   if (!best) return;
   const ang = Math.atan2(best.x - player.x, best.z - player.z);
+  guide.material.color.set('#ff8a2a');
   guide.position.set(player.x + Math.sin(ang) * 4.4, 0.12, player.z + Math.cos(ang) * 4.4);
   guide.rotation.y = ang;
   guide.scale.setScalar(1 + Math.sin(G.stateTime * 8) * 0.12);
@@ -991,8 +1179,10 @@ function updateGuide() {
 // ============================================================
 // Audio (all synthesized with WebAudio)
 // ============================================================
+const ARCADE_ROOTS = [45, 43, 41, 40], ROGUE_ROOTS = [38, 46, 48, 45];   // Am G F E, Dm Bb C A
 const audio = {
   ctx: null,
+  roots: ARCADE_ROOTS,
   init() {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -1053,7 +1243,28 @@ const audio = {
     src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05);
   },
   shoot() { this.tone('square', 720, 90, 0.16, 0.13); this.noise(0.12, 0.3, 4000, 300); },
-  boom(size = 1) { this.noise(0.35 + 0.35 * size, 0.7, 1800, 50); this.tone('sine', 130, 28, 0.3 + 0.25 * size, 0.7); },
+  boom(size = 1) {
+    if (!this.ctx || this.ctx.currentTime - (this.boomAt || 0) < 0.04) return;   // a chain of kills shouldn't clip
+    this.boomAt = this.ctx.currentTime;
+    this.noise(0.35 + 0.35 * size, 0.7, 1800, 50); this.tone('sine', 130, 28, 0.3 + 0.25 * size, 0.7);
+  },
+  pew() { this.tone('square', 1100, 300, 0.06, 0.045); this.noise(0.05, 0.07, 6000, 2000, 'highpass'); },
+  eshot() {
+    if (!this.ctx || this.ctx.currentTime - (this.eshotAt || 0) < 0.08) return;
+    this.eshotAt = this.ctx.currentTime;
+    this.tone('sine', 700, 380, 0.07, 0.035);
+  },
+  dash() { this.noise(0.22, 0.32, 500, 3200, 'bandpass'); this.tone('sawtooth', 140, 480, 0.18, 0.06); },
+  levelup() { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => this.tone('square', f, f, 0.1, 0.09, i * 0.05)); },
+  graze() { this.tone('triangle', 2300, 2800, 0.04, 0.04); },
+  xp() {
+    if (!this.ctx || this.ctx.currentTime - (this.xpAt || 0) < 0.05) return;
+    this.xpAt = this.ctx.currentTime;
+    this.tone('triangle', 1300 + Math.random() * 400, 1900, 0.05, 0.035);
+  },
+  shield() { this.tone('triangle', 300, 1200, 0.25, 0.08); },
+  shieldBreak() { this.noise(0.3, 0.4, 3000, 400, 'bandpass'); this.tone('square', 900, 120, 0.3, 0.1); },
+  pulse() { this.tone('sine', 220, 50, 0.45, 0.4); this.noise(0.35, 0.25, 2400, 200); },
   ping() { this.tone('triangle', 1700, 2500, 0.07, 0.12); },
   thud() { this.noise(0.08, 0.2, 900, 200); },
   hurt() { this.tone('sawtooth', 300, 40, 0.55, 0.22); this.noise(0.45, 0.45, 1200, 90); },
@@ -1092,8 +1303,7 @@ const audio = {
     }
   },
   playStep(s, when, spb) {
-    const roots = [45, 43, 41, 40];
-    const i = s % 16, root = roots[Math.floor(s / 16)];
+    const i = s % 16, root = this.roots[Math.floor(s / 16)];
     const mf = (m) => 440 * Math.pow(2, (m - 69) / 12);
     const pattern = { 0: 0, 2: 0, 3: 12, 6: 0, 8: 0, 10: 7, 11: 12, 14: 0 };
     if (i in pattern) this.tone('square', mf(root + pattern[i]), mf(root + pattern[i]), spb * 0.9, 0.09, when, this.music);
@@ -1107,40 +1317,59 @@ const audio = {
 // Input: keyboard, touch, gamepad
 // ============================================================
 const keys = new Set();
-const input = { throttle: 0, turn: 0, fire: false };
+const input = { throttle: 0, turn: 0, fire: false, mx: 0, my: 0, dash: false };
 const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const fireTouch = { id: null };
-const gpad = { thr: 0, turn: 0, fire: false, start: false, startPrev: false };
+const gpad = { thr: 0, turn: 0, fire: false, start: false, startPrev: false, mx: 0, my: 0, dash: false, dashPrev: false, nav: 0 };
 let isTouch = matchMedia('(pointer: coarse)').matches;
 
 const GAME_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyJ', 'KeyK']);
+const DASH_KEYS = new Set(['Space', 'ShiftLeft', 'ShiftRight', 'KeyJ', 'KeyK']);
+const CARD_KEYS = { Digit1: 0, Digit2: 1, Digit3: 2, Numpad1: 0, Numpad2: 1, Numpad3: 2 };
 addEventListener('keydown', (e) => {
   if (GAME_KEYS.has(e.code)) e.preventDefault();
   if (e.repeat) return;
   keys.add(e.code);
+  if (G.state === 'levelup') {
+    if (e.code in CARD_KEYS) chooseUpgrade(CARD_KEYS[e.code]);
+    if (e.code === 'KeyR') rerollCards();
+    return;
+  }
+  if (DASH_KEYS.has(e.code)) input.dash = true;
   if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
   if (e.code === 'KeyM') cycleSound();
   if ((e.code === 'Enter' || e.code === 'Space') && !(e.target instanceof HTMLButtonElement)) {
-    if (G.state === 'title' && !$('title').hidden) startGame();
-    else if (G.state === 'over' && !$('over').hidden && performance.now() - G.overShownAt > 700) startGame();
+    if (G.state === 'title' && !ui.title.hidden) startGame(G.lastMode);
+    else if (G.state === 'over' && !ui.over.hidden && performance.now() - G.overShownAt > 700) startGame(G.mode);
   }
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 
-const touchEl = $('touch'), stickEl = $('stick'), knobEl = $('knob'), fireEl = $('fireBtn');
+const touchEl = $('touch'), stickEl = $('stick'), knobEl = $('knob'), fireEl = $('fireBtn'), dashEl = $('dashBtn');
 const STICK_R = 64;
 function enableTouchUI() {
   if (!isTouch) { isTouch = true; document.body.classList.add('is-touch'); }
   if (G.state === 'play' || G.state === 'countdown' || G.state === 'clear') touchEl.hidden = false;
 }
+function overDash(e) {
+  const r = dashEl.getBoundingClientRect();
+  return Math.hypot(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2)) < r.width * 0.65;
+}
 touchEl.addEventListener('pointerdown', (e) => {
   e.preventDefault();
-  if (e.clientX < innerWidth * 0.5) {
+  const rogue = G.mode === 'rogue';
+  if (rogue && (stick.id !== null || overDash(e))) {
+    // Bullet Rogue: a second finger anywhere, or the dash button itself, dashes.
+    input.dash = true;
+    restartAnim(dashEl, 'down');
+    return;
+  }
+  if (rogue || e.clientX < innerWidth * 0.5) {
     if (stick.id !== null) return;
     stick.id = e.pointerId;
-    stick.ox = clamp(e.clientX, 40, innerWidth * 0.5 - 20);
-    stick.oy = clamp(e.clientY, 60, innerHeight - 40);
+    stick.ox = e.clientX;
+    stick.oy = e.clientY;
     placeStick();
     stickEl.classList.add('on');
     moveStick(e.clientX, e.clientY);
@@ -1160,13 +1389,7 @@ function placeStick() {
 function moveStick(cx, cy) {
   let dx = cx - stick.ox, dy = cy - stick.oy;
   const d = Math.hypot(dx, dy);
-  if (d > STICK_R) {
-    // The base trails the thumb, so reversing direction never needs a long drag back.
-    const k = (d - STICK_R) / d;
-    stick.ox += dx * k; stick.oy += dy * k;
-    dx -= dx * k; dy -= dy * k;
-    placeStick();
-  }
+  if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; }
   knobEl.style.transform = `translate(${dx}px, ${dy}px)`;
   stick.x = dx / STICK_R; stick.y = -dy / STICK_R;
 }
@@ -1194,22 +1417,39 @@ document.addEventListener('dblclick', (e) => e.preventDefault());
 
 function pollGamepad() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  gpad.thr = gpad.turn = 0; gpad.fire = false; gpad.start = false;
+  gpad.thr = gpad.turn = gpad.mx = gpad.my = 0; gpad.fire = gpad.start = gpad.dash = false;
+  let nav = 0;
   for (const gp of pads) {
     if (!gp) continue;
-    gpad.turn = shape(gp.axes[0] || 0, 0.18, 1.8);
-    gpad.thr = shape(-(gp.axes[1] || 0), 0.2, 1.3);
+    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, len = Math.hypot(ax, ay);
+    gpad.turn = shape(ax, 0.18, 1.8);
+    gpad.thr = shape(-ay, 0.2, 1.3);
+    if (len > 0.2) { const k = Math.min(1, (len - 0.2) / 0.75) / len; gpad.mx = ax * k; gpad.my = -ay * k; }
     const b = (i) => gp.buttons[i] && gp.buttons[i].pressed;
-    if (b(12)) gpad.thr = 1;
-    if (b(13)) gpad.thr = -1;
-    if (b(14)) gpad.turn = -1;
-    if (b(15)) gpad.turn = 1;
+    if (b(12)) gpad.thr = gpad.my = 1;
+    if (b(13)) gpad.thr = gpad.my = -1;
+    if (b(14)) gpad.turn = gpad.mx = -1;
+    if (b(15)) gpad.turn = gpad.mx = 1;
     gpad.fire = b(0) || b(5) || b(7);
+    gpad.dash = b(0) || b(2) || b(5);
+    gpad.y = b(3);
     gpad.start = b(9);
+    nav = b(14) || ax < -0.6 || b(12) ? -1 : b(15) || ax > 0.6 || b(13) ? 1 : 0;
     break;
   }
+  // Level-up cards: move between them, A to choose. Otherwise A dashes in Bullet Rogue.
+  if (G.state === 'levelup') {
+    const cards = [...document.querySelectorAll('#cards .upg')], at = cards.indexOf(document.activeElement);
+    if (nav && nav !== gpad.nav) cards[clamp(at + nav, 0, cards.length - 1)]?.focus({ preventScroll: true });
+    if (gpad.dash && !gpad.dashPrev) document.activeElement?.click();
+    if (gpad.y && !gpad.yPrev) rerollCards();
+  } else if (G.mode === 'rogue' && gpad.dash && !gpad.dashPrev) input.dash = true;
+  gpad.nav = nav;
+  gpad.dashPrev = gpad.dash;
+  gpad.yPrev = gpad.y;
   if (gpad.start && !gpad.startPrev) {
-    if (G.state === 'title' || (G.state === 'over' && !$('over').hidden)) startGame();
+    if (G.state === 'title') startGame(G.lastMode);
+    else if (G.state === 'over' && !ui.over.hidden) startGame(G.mode);
     else togglePause();
   }
   gpad.startPrev = gpad.start;
@@ -1234,6 +1474,21 @@ function readInput() {
   thr += gpad.thr; turn += gpad.turn;
   input.throttle = clamp(thr, -1, 1);
   input.turn = clamp(turn, -1, 1);
+
+  // Bullet Rogue steers by direction: a screen-space vector, length up to 1.
+  let mx = 0, my = 0;
+  if (keys.has('KeyW') || keys.has('ArrowUp')) my += 1;
+  if (keys.has('KeyS') || keys.has('ArrowDown')) my -= 1;
+  if (keys.has('KeyA') || keys.has('ArrowLeft')) mx -= 1;
+  if (keys.has('KeyD') || keys.has('ArrowRight')) mx += 1;
+  if (stick.id !== null) {
+    const len = Math.hypot(stick.x, stick.y);
+    if (len > 0.15) { const k = Math.min(1, (len - 0.15) / 0.75) / len; mx += stick.x * k; my += stick.y * k; }
+  }
+  mx += gpad.mx; my += gpad.my;
+  const ml = Math.hypot(mx, my);
+  input.mx = ml > 1 ? mx / ml : mx;
+  input.my = ml > 1 ? my / ml : my;
   input.fire = keys.has('Space') || keys.has('KeyJ') || keys.has('KeyK') || fireTouch.id !== null || gpad.fire;
 }
 
@@ -1243,10 +1498,10 @@ function readInput() {
 const ui = {
   hud: $('hud'), title: $('title'), pause: $('pause'), over: $('over'), touch: touchEl,
   score: $('score'), timer: $('timer'), wave: $('wave'), left: $('left'),
-  combo: $('combo'), comboText: $('comboText'), comboBar: $('comboBar'),
+  combo: $('combo'), comboText: $('comboText'), comboBar: $('comboBar'), shots: $('shots'), shotsBox: $('shotsBox'),
   power: $('power'), powerName: $('powerName'), powerBar: $('powerBar'),
   banner: $('banner'), bannerBig: $('bannerBig'), bannerSmall: $('bannerSmall'),
-  fade: $('fade'), hurt: $('hurt'), sound: $('btnSound'),
+  fade: $('fade'), hurt: $('hurt'), sound: $('btnSound'), levelup: $('levelup'),
 };
 let bannerTimer = 0;
 function banner(big, small = '', dur = 1.2) {
@@ -1272,25 +1527,36 @@ function fadeIn() {
 function setState(s) { G.state = s; G.stateTime = 0; }
 
 function showTitle() {
+  G.mode = 'arcade';
+  document.body.classList.remove('mode-rogue');
   setState('title');
   buildArena(1);
   G.cfg = waveConfig(1);
   spawnWave(G.cfg, true);
   resetPlayer();
-  $('bestTitle').textContent = G.best.toLocaleString();
-  ui.title.hidden = false; ui.hud.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.touch.hidden = true;
+  $('bestArcade').textContent = G.best.toLocaleString();
+  const rb = store.get('rogueBest', { depth: 0 });
+  $('bestRogue').textContent = rb.depth ? `MAZE ${rb.depth}` : '\u2013';
+  ui.title.hidden = false; ui.hud.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.touch.hidden = true; ui.levelup.hidden = true;
   hideBanner();
   bannerTimer = 0;
   audio.engine(0, false);
 }
 
-function startGame() {
+function startGame(mode = G.mode) {
   audio.init();
-  G.score = 0; G.kills = 0; G.bestCombo = 0; G.combo = 0; G.comboTimer = 0;
-  ui.title.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.hud.hidden = false;
+  G.mode = G.lastMode = mode;
+  document.body.classList.toggle('mode-rogue', mode === 'rogue');
+  audio.roots = mode === 'rogue' ? ROGUE_ROOTS : ARCADE_ROOTS;
+  input.dash = false;
+  ui.title.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.levelup.hidden = true; ui.hud.hidden = false;
   if (isTouch) document.body.classList.add('is-touch');
   resize();
-  startWave(1);
+  if (mode === 'rogue') startRogueRun();
+  else {
+    G.score = 0; G.kills = 0; G.bestCombo = 0; G.combo = 0; G.comboTimer = 0;
+    startWave(1);
+  }
 }
 
 function startWave(w) {
@@ -1303,6 +1569,8 @@ function startWave(w) {
   G.timeLeft = G.cfg.time;
   G.bonusSpawned = false;
   G.lastSecond = 99;
+  G.shots = 0;
+  G.waveTargets = G.remaining;
   G.comboTimer = 0;
   G.waveHits = 0;
   setState('countdown');
@@ -1370,7 +1638,7 @@ function addTarget(type, x, z, delay) {
 function resetPlayer() {
   Object.assign(player, {
     x: SPAWN.x, z: SPAWN.z, a: 0, speed: 0, turnVel: 0, kx: 0, kz: 0, spin: 0, cooldown: 0.2, invuln: 0,
-    power: null, powerTime: 0, recoil: 0, dustAcc: 0, bumpCd: 0,
+    power: null, powerTime: 0, recoil: 0, dustAcc: 0, bumpCd: 0, reversing: false,
   });
   player.pitch.x = player.pitch.v = player.roll.x = player.roll.v = 0;
   player.mesh.visible = true;
@@ -1382,8 +1650,15 @@ function waveClear() {
   setState('clear');
   const bonus = Math.ceil(G.timeLeft) * 100;
   const flawless = G.cfg.tankShoot && G.waveHits === 0 ? 250 * G.wave : 0;
-  G.score += bonus + flawless;
-  banner('CLEAR!', `TIME BONUS +${bonus.toLocaleString()}` + (flawless ? ` \u00b7 NO HITS +${flawless.toLocaleString()}` : ''), 2.1);
+  // Every shot under the limit is worth 150; firing freely costs nothing but this bonus.
+  const limit = SHOTS_PER_TARGET * G.waveTargets;
+  const sharp = G.shots <= limit ? 150 * (limit - G.shots + 1) : 0;
+  G.score += bonus + flawless + sharp;
+  const parts = [`TIME BONUS +${bonus.toLocaleString()}`];
+  if (sharp) parts.push(`SHARPSHOOTER +${sharp.toLocaleString()}`);
+  if (flawless) parts.push(`NO HITS +${flawless.toLocaleString()}`);
+  banner('CLEAR!', parts.join(' \u00b7 '), 2.1);
+  if (sharp) popup('SHARPSHOOTER', player.x, 4.5, player.z, 'big', `${G.shots} SHOTS`);
   audio.clear();
   for (const s of shells) if (s.owner === 'enemy') { scene.remove(s.mesh); s.dead = true; }
   for (const t of targets) if (t.alive && t.type === 'bonus') vanish(t);
@@ -1399,19 +1674,37 @@ function gameOver() {
   releaseAllPointers();
 }
 
-function showGameOver() {
-  const isBest = G.score > G.best;
-  if (isBest) { G.best = G.score; store.set('best', G.best); }
-  $('oScore').textContent = G.score.toLocaleString();
-  $('oWave').textContent = G.wave;
-  $('oKills').textContent = G.kills;
-  $('oCombo').textContent = 'x' + Math.max(1, G.bestCombo);
-  const ob = $('oBest');
-  ob.innerHTML = isBest && G.score > 0 ? '<span class="newbest">NEW BEST SCORE!</span>' : `BEST <b>${G.best.toLocaleString()}</b>`;
+// Results card shared by both modes. bestHtml is built from numbers only.
+function showOver(title, stats, bestHtml, isBest, chips = null) {
+  $('oTitle').textContent = title;
+  const box = $('oStats');
+  box.textContent = '';
+  for (const [label, value] of stats) {
+    const d = document.createElement('div'), l = document.createElement('span'), v = document.createElement('b');
+    l.textContent = label; v.textContent = value;
+    d.append(l, v);
+    box.appendChild(d);
+  }
+  const build = $('oBuild');
+  build.textContent = '';
+  build.hidden = !chips || !chips.length;
+  for (const c of chips || []) {
+    const el = document.createElement('span');
+    el.className = 'chip'; el.textContent = c.text; el.style.background = c.color;
+    build.appendChild(el);
+  }
+  $('oBest').innerHTML = isBest ? `<span class="newbest">${bestHtml}</span>` : bestHtml;
   ui.over.hidden = false;
   ui.hud.hidden = true;
   G.overShownAt = performance.now();
   setTimeout(() => $('btnAgain').focus({ preventScroll: true }), 50);
+}
+
+function showGameOver() {
+  const isBest = G.score > G.best;
+  if (isBest) { G.best = G.score; store.set('best', G.best); }
+  showOver('TIME UP', [['SCORE', G.score.toLocaleString()], ['WAVE', G.wave], ['TARGETS', G.kills], ['BEST COMBO', 'x' + Math.max(1, G.bestCombo)]],
+    isBest ? 'NEW BEST SCORE!' : `BEST <b>${G.best.toLocaleString()}</b>`, isBest && G.score > 0);
 }
 
 function togglePause() {
@@ -1420,6 +1713,7 @@ function togglePause() {
   G.prevState = G.state;
   G.state = 'paused';
   ui.pause.hidden = false;
+  if (G.mode === 'rogue') renderLoadout();
   audio.engine(0, false);
   releaseAllPointers();
   keys.clear();
@@ -1444,8 +1738,9 @@ function renderSoundBtn() {
   ui.sound.setAttribute('aria-label', label);
 }
 
-$('btnStart').addEventListener('click', startGame);
-$('btnAgain').addEventListener('click', startGame);
+$('btnArcade').addEventListener('click', () => startGame('arcade'));
+$('btnRogue').addEventListener('click', () => startGame('rogue'));
+$('btnAgain').addEventListener('click', () => startGame(G.mode));
 $('btnMenu').addEventListener('click', showTitle);
 $('btnPause').addEventListener('click', togglePause);
 $('btnResume').addEventListener('click', resume);
@@ -1467,6 +1762,7 @@ document.addEventListener('visibilitychange', () => {
 function firePlayer() {
   const p = player;
   p.cooldown = G.cfg.fireCooldown * (p.power === 'rapid' ? 0.4 : 1);
+  G.shots++;
   const lock = assistTarget();
   const aim = lock ? leadAngle(lock) : p.a;
   const spread = p.power === 'spread' ? [-0.17, 0, 0.17] : [0];
@@ -1595,6 +1891,7 @@ function destroyTarget(t, opts = {}) {
     let pts = def.pts * mult, cls = '', sub = mult > 1 ? `COMBO x${mult}` : '';
     if (opts.banked) { pts = Math.round(pts * 1.5); cls = 'bank'; sub = 'BANK SHOT' + (mult > 1 ? ` x${mult}` : ''); }
     else if (opts.chain) sub = 'CHAIN' + (mult > 1 ? ` x${mult}` : '');
+    else if (opts.crushed) sub = 'CRUSHED' + (mult > 1 ? ` x${mult}` : '');
     G.score += pts;
     G.kills++;
     popup('+' + pts, t.x, 2.6, t.z, cls, sub);
@@ -1633,6 +1930,7 @@ function explode(t) {
     const k = (7 - d) * 2.6;
     player.kx += (dx / d) * k; player.kz += (dz / d) * k;
     addShake(0.5);
+    if (d < BLAST_HIT_R) hitPlayer(dx / d, dz / d);
   }
   G.hitstop = Math.max(G.hitstop, 0.05);
 }
@@ -1742,10 +2040,17 @@ function updatePlayer(dt, active) {
     if (!t.alive || t.age < 0) continue;
     const dx = p.x - t.x, dz = p.z - t.z, d = Math.hypot(dx, dz), min = TANK_R + t.r;
     if (d >= min || d < 1e-6) continue;
+    const into = -(hx * dx + hz * dz) / d * Math.sign(p.speed);
+    // Ramming at speed crushes crates and sets barrels off (which, this close, also hits you).
+    if ((t.type === 'crate' || t.type === 'barrel') && into > 0.3 && Math.abs(p.speed) > CRUSH_SPEED && G.state === 'play') {
+      p.speed *= 0.7;
+      p.pitch.v += 1.2 * Math.sign(p.speed);
+      destroyTarget(t, { crushed: true });
+      continue;
+    }
     const k = (min - d) / d;
     if (t.type === 'tank') { p.x += dx * k * 0.5; p.z += dz * k * 0.5; t.x -= dx * k * 0.5; t.z -= dz * k * 0.5; }
     else { p.x += dx * k; p.z += dz * k; }
-    const into = -(hx * dx + hz * dz) / d * Math.sign(p.speed);
     if (into > 0) p.speed *= 1 - into * into * 0.5;
   }
   collideWalls(p, TANK_R);
@@ -1777,7 +2082,7 @@ function updatePlayer(dt, active) {
   m.rotation.y = p.a;
   hull.rotation.set(p.pitch.x, 0, p.roll.x);
   hull.position.y = 0.8 + Math.sin(G.stateTime * 40) * 0.025 * Math.min(1, Math.abs(p.speed) / 8);
-  m.userData.barrel.position.z = 1.35 - p.recoil * 0.45;
+  m.userData.barrel.position.z = 1.55 - p.recoil * 0.45;
   m.visible = p.invuln > 0 ? Math.floor(p.invuln * 14) % 2 === 0 : true;
 }
 
@@ -1907,6 +2212,1973 @@ function updateEnemyTank(t, dt, active) {
 }
 
 // ============================================================
+// Bullet Rogue: rules and data
+// ============================================================
+const CELL = 12;                 // maze cell size
+const MAZE_T = 1.6;              // maze wall thickness
+const PLAYER_HIT = 0.75;         // bullet-hell hitbox, far smaller than the hull
+const GRAZE_R = 2.4;             // near misses inside this radius pay a little experience
+const ENEMY_CAP = 60;
+const MAX_SLOTS = 4;
+const EB_MAX = 700, PB_MAX = 400, ORB_MAX = 300, MAZE_MAX = 400;
+
+// Skills are simple stat steps picked on level-up; most have no cap. Gear changes how you fight and needs a slot.
+const dashCdFor = (r) => Math.max(0.6, 2.4 * Math.pow(0.92, r));
+const regenFor = (r) => (r ? Math.max(6, 40 * Math.pow(0.8, r - 1)) : 0);
+const SKILLS = {
+  reload:   { name: 'Autoloader', color: '#ff8a2a', desc: '+10% fire rate', fx: (r) => `+${r * 10}% fire rate` },
+  damage:   { name: 'Heavy Shells', color: '#ff4b3a', desc: '+10% shell damage', fx: (r) => `+${r * 10}% damage` },
+  velocity: { name: 'Long Barrel', color: '#f2c53d', desc: '+10% shell speed, +5% range', fx: (r) => `+${r * 10}% shell speed, +${r * 5}% range` },
+  engine:   { name: 'Engine Tune', color: '#3fd7ff', desc: '+6% drive speed, quicker turret', fx: (r) => `+${r * 6}% speed` },
+  crit:     { name: 'Gun Sight', color: '#ffe14f', max: 19, desc: '+5% chance of a double-damage shot', fx: (r) => `${5 + r * 5}% crit chance` },
+  salvage:  { name: 'Salvager', color: '#6cf0a0', desc: '+10% experience', fx: (r) => `+${r * 10}% experience` },
+  magnet:   { name: 'Tractor Beam', color: '#b86cff', desc: '+20% pickup range', fx: (r) => `+${r * 20}% pickup range` },
+  plating:  { name: 'Hull Plating', color: '#ff6b8a', max: 5, desc: '+1 max heart and repair 1', fx: (r) => `+${r} max heart${r > 1 ? 's' : ''}` },
+  nitro:    { name: 'Nitro', color: '#7d97ff', desc: 'Dash recharges 8% faster', fx: (r) => `dash every ${dashCdFor(r).toFixed(1)} s` },
+  regen:    { name: 'Field Repair', color: '#6cf0a0', desc: 'Repair hearts over time, faster each rank', fx: (r) => `a heart every ${Math.round(regenFor(r))} s` },
+  ram:      { name: 'Battering Ram', color: '#ffa53a', desc: 'Dashing through enemies hurts them', fx: (r) => `dash hits for ${r * 150}% damage` },
+};
+const EQUIP = {
+  multi:  { name: 'Multi-Cannon', color: '#f2c53d', desc: ['Fire 2 shells at once', 'Fire 3 shells at once', 'Fire 4 shells at once'] },
+  bounce: { name: 'Ricochet Rounds', color: '#56e8ff', desc: ['Shells bounce off walls once', 'Shells bounce twice', 'Bounce 3 times, +25% damage per bounce'] },
+  homing: { name: 'Seeker Shells', color: '#b86cff', desc: ['Shells curve toward enemies', 'Shells track harder', 'Shells lock on, +15% range'] },
+  pierce: { name: 'Piercing Rounds', color: '#ff8a2a', desc: ['Shells punch through 1 enemy', 'Through 2 enemies', 'Through 3 enemies'] },
+  flak:   { name: 'Flak Shells', color: '#ff4b3a', desc: ['Hits burst for 50% splash damage', 'Bigger bursts, 70% splash', 'Huge bursts, 90% splash'] },
+  armor:  { name: 'Reactive Armor', color: '#6cf0a0', desc: ['Blocks one hit, recharges in 10 s', 'Recharges in 7 s', 'Holds 2 charges, 5 s recharge'] },
+  drones: { name: 'Escort Drones', color: '#43e0d6', desc: ['A drone circles you, rams enemies and blocks shots', '2 drones', '3 drones'] },
+  pulse:  { name: 'EMP Pulse', color: '#7d97ff', desc: ['Every 6 s a pulse wipes nearby shots and hurts enemies', 'Every 5 s, wider', 'Every 4 s, widest'] },
+};
+// Maze pickups: the arcade cubes, but each one is a permanent skill rank, a repair, or a gear crate.
+const BOOSTS = {
+  reload: { icon: 'reload', color: '#ff8a2a', skill: 'reload' },
+  damage: { icon: 'damage', color: '#ff4b3a', skill: 'damage' },
+  engine: { icon: 'engine', color: '#3fd7ff', skill: 'engine' },
+  repair: { icon: 'regen', color: '#6cf0a0' },
+  cache:  { glyph: '?', color: '#56e8ff' },   // supply crate in a dead end: pick gear
+  crate:  { glyph: '?', color: '#f2c53d' },   // boss crate: pick gear and gain a slot
+};
+// 24-unit line and shape icons shared by the HUD, cards, loadout and pickup cubes.
+const ICONS = {
+  reload:   { fill: true, d: 'M2 21V10l2.5-5L7 10v11zM9.5 21V10L12 5l2.5 5v11zM17 21V10l2.5-5L22 10v11z' },
+  damage:   { fill: true, d: 'M7 22V11c0-5 2.5-8.5 5-9.5 2.5 1 5 4.5 5 9.5v11z' },
+  velocity: { d: 'M2 12h17M14 6l6 6-6 6M2 6h6M2 18h6' },
+  engine:   { d: 'M4 5l7 7-7 7M12 5l7 7-7 7' },
+  crit:     { d: 'M12 2v6M12 16v6M2 12h6M16 12h6M18 12a6 6 0 1 1-12 0a6 6 0 1 1 12 0' },
+  salvage:  { fill: true, d: 'M6 3h12l4 6-10 13L2 9z' },
+  magnet:   { fill: true, d: 'M4 3h5v9a3 3 0 0 0 6 0V3h5v9a8 8 0 0 1-16 0z' },
+  plating:  { fill: true, d: 'M12 21C5 15 2 12 2 8a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 4-3 7-10 13z' },
+  nitro:    { fill: true, d: 'M14 2L4 14h7l-2 8 11-13h-7z' },
+  regen:    { fill: true, d: 'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z' },
+  ram:      { fill: true, d: 'M2 9h9V4l11 8-11 8v-5H2z' },
+  multi:    { d: 'M12 21L5 4M12 21V3M12 21l7-17' },
+  bounce:   { d: 'M2 5l6 14 6-14 6 14M16.5 17.5l3.5 1.5 1-3.8' },
+  homing:   { d: 'M3 20C4 10 10 5 19 5M15 1.5L19 5l-4 3.5' },
+  pierce:   { d: 'M2 12h19M17 8l4 4-4 4M10 4v16' },
+  flak:     { d: 'M12 2v6M12 16v6M2 12h6M16 12h6M5 5l4 4M15 15l4 4M19 5l-4 4M9 15l-4 4' },
+  armor:    { fill: true, d: 'M12 2l9 3.5V11c0 5.5-4 9.5-9 11-5-1.5-9-5.5-9-11V5.5z' },
+  drones:   { d: 'M19 12a7 7 0 1 1-14 0a7 7 0 1 1 14 0', d2: 'M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M15.5 6a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0' },
+  pulse:    { d: 'M14 12a2 2 0 1 1-4 0a2 2 0 1 1 4 0M17.5 12a5.5 5.5 0 1 1-11 0a5.5 5.5 0 1 1 11 0M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0' },
+};
+function iconSvg(id) {
+  const ic = ICONS[id];
+  const main = ic.fill ? `<path d="${ic.d}" fill="currentColor"/>`
+    : `<path d="${ic.d}" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`;
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${main}${ic.d2 ? `<path d="${ic.d2}" fill="currentColor"/>` : ''}</svg>`;
+}
+const xpNeed = (lvl) => Math.round(8 + (lvl - 1) * 4 + Math.pow(lvl - 1, 1.25) * 1.5);
+const ebSpeed = (base) => base * Math.min(1.6, 1 + 0.035 * (RG.depth - 1));
+
+// ============================================================
+// Bullet Rogue: models
+// ============================================================
+const hexGeo = new THREE.CylinderGeometry(1, 1, 1, 6);
+const crawlerGeo = new THREE.OctahedronGeometry(0.9);
+const FM = {
+  crawler: lam('#ff4f7b', { emissive: '#4a0820', flatShading: true }),
+  gunner: lam('#e0663a'), gunnerDark: lam('#9c3d1c'),
+  base: lam('#3a3f55'),
+  sentry: lam('#ffa53a', { emissive: '#3a1c00' }),
+  spinner: lam('#d34fff', { emissive: '#36004a' }),
+  heavy: lam('#8a2b3a'), heavyDark: lam('#561824'),
+  core: lam('#2a2e40'),
+  coreGlow: new THREE.MeshBasicMaterial({ color: '#ff3b5c' }),
+  boss: lam('#6a3fd0'), bossDark: lam('#3c2390'),
+  elite: lam('#f2c53d', { emissive: '#4a3300' }),
+};
+function shadowed(m) { m.castShadow = m.receiveShadow = true; return m; }
+
+const FOES = {
+  crawler: {
+    r: 0.95, hp: 10, xp: 1, speed: 6.5, scale: 1, debris: ['#ff4f7b', '#5a0a22', '#ffffff'],
+    make() {
+      const g = new THREE.Group(), body = shadowed(new THREE.Mesh(crawlerGeo, FM.crawler));
+      body.position.y = 1; body.scale.set(1, 0.8, 1);
+      g.add(body); g.userData.body = body; return g;
+    },
+  },
+  gunner: {
+    r: 1.45, hp: 45, xp: 4, speed: 5, scale: 0.82, debris: ['#e0663a', '#9c3d1c', '#23251c'],
+    make() { return makeTank(FM.gunner, FM.gunnerDark); },
+  },
+  sentry: {
+    r: 1.5, hp: 60, xp: 5, scale: 1, bar: 2.9, debris: ['#ffa53a', '#3a3f55', '#ffffff'],
+    make() {
+      const g = new THREE.Group();
+      const base = shadowed(new THREE.Mesh(hexGeo, FM.base)); base.scale.set(1.3, 0.9, 1.3); base.position.y = 0.45;
+      const head = new THREE.Group(); head.position.y = 1.25;
+      head.add(part(FM.sentry, 1.5, 0.7, 1.5, 0, 0, 0));
+      for (let i = 0; i < 4; i++) {
+        const pivot = new THREE.Group(); pivot.rotation.y = i * Math.PI / 2;
+        pivot.add(part(FM.base, 0.3, 0.3, 0.9, 0, 0, 0.95)); head.add(pivot);
+      }
+      g.add(base, head); g.userData.body = head; return g;
+    },
+  },
+  spinner: {
+    r: 1.5, hp: 80, xp: 7, scale: 1, bar: 2.9, debris: ['#d34fff', '#36004a', '#ffffff'],
+    make() {
+      const g = new THREE.Group();
+      const base = shadowed(new THREE.Mesh(hexGeo, FM.base)); base.scale.set(1.2, 0.8, 1.2); base.position.y = 0.4;
+      const body = new THREE.Group(); body.position.y = 1.3;
+      body.add(part(FM.spinner, 3.2, 0.35, 0.5, 0, 0, 0), part(FM.spinner, 0.5, 0.35, 3.2, 0, 0, 0), part(FM.base, 0.9, 0.6, 0.9, 0, 0, 0));
+      g.add(base, body); g.userData.body = body; return g;
+    },
+  },
+  heavy: {
+    r: 2.1, hp: 170, xp: 12, speed: 3.3, scale: 1.35, bar: 3.6, debris: ['#8a2b3a', '#561824', '#23251c'],
+    make() { return makeTank(FM.heavy, FM.heavyDark); },
+  },
+  core: {
+    r: 1.9, hp: 170, xp: 20, scale: 1, bar: 5.4, debris: ['#ff3b5c', '#2a2e40', '#ffffff'],
+    make() {
+      const g = new THREE.Group();
+      const pylon = shadowed(new THREE.Mesh(hexGeo, FM.core)); pylon.scale.set(1.4, 3.2, 1.4); pylon.position.y = 1.6;
+      const glow = new THREE.Mesh(sphereGeo, FM.coreGlow); glow.scale.setScalar(0.85); glow.position.y = 3.9;
+      const ring = shadowed(new THREE.Mesh(ringGeo, FM.base)); ring.rotation.x = Math.PI / 2; ring.position.y = 3.9;
+      g.add(pylon, glow, ring); g.userData.body = glow; return g;
+    },
+  },
+  boss: {
+    r: 3.4, hp: 1000, xp: 100, speed: 2.8, scale: 2.1, debris: ['#6a3fd0', '#3c2390', '#ffe14f'],
+    make() {
+      const g = makeTank(FM.boss, FM.bossDark);
+      for (const sx of [-0.55, 0.55]) g.userData.turret.add(part(FM.bossDark, 0.22, 0.22, 1.4, sx, 0.05, 1.1));
+      return g;
+    },
+  },
+};
+
+// Instanced pools keep hundreds of bullets and orbs to a handful of draw calls.
+function instanced(geo, mat, max) {
+  const m = new THREE.InstancedMesh(geo, mat, max);
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  m.frustumCulled = false;
+  scene.add(m);
+  return m;
+}
+function withColors(m) {
+  for (let i = 0; i < m.instanceMatrix.count; i++) m.setColorAt(i, tmpColor.set('#ffffff'));
+  m.count = 0;
+  return m;
+}
+const ebCore = withColors(instanced(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ fog: false }), EB_MAX));
+const ebGlow = withColors(instanced(discGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55, depthWrite: false, fog: false }), EB_MAX));
+const pbMesh = withColors(instanced(boxGeo, new THREE.MeshBasicMaterial({ fog: false }), PB_MAX));
+const orbMesh = withColors(instanced(new THREE.OctahedronGeometry(0.34), new THREE.MeshBasicMaterial({ fog: false }), ORB_MAX));
+const mazeMesh = instanced(boxGeo, M.wall, MAZE_MAX);
+mazeMesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+mazeMesh.castShadow = mazeMesh.receiveShadow = true;
+mazeMesh.count = 0;
+
+const EB_COL = {};
+for (const [k, hex] of Object.entries({ pink: '#ff4fa3', orange: '#ffa53a', cyan: '#56e8ff', violet: '#b86cff', red: '#ff4b3a' })) {
+  EB_COL[k] = { glow: new THREE.Color(hex), core: new THREE.Color(mixHex(hex, '#ffffff', 0.55)) };
+}
+const PB_COL = { normal: new THREE.Color('#fff3b0'), crit: new THREE.Color('#ffe14f') };
+const ORB_COL = { 1: new THREE.Color('#6cf0a0'), 5: new THREE.Color('#56e8ff'), 25: new THREE.Color('#ffe14f') };
+// Pickup cube faces: the same icons, drawn dark on the boost's colour.
+function iconTex(id, bg) {
+  return pixelTexture(64, (g, sz) => {
+    g.fillStyle = bg; g.fillRect(0, 0, sz, sz);
+    g.fillStyle = '#14172b'; g.fillRect(0, 0, sz, 5); g.fillRect(0, sz - 5, sz, 5); g.fillRect(0, 0, 5, sz); g.fillRect(sz - 5, 0, 5, sz);
+    const ic = ICONS[id];
+    g.save();
+    g.translate(sz * 0.18, sz * 0.18);
+    g.scale(sz * 0.64 / 24, sz * 0.64 / 24);
+    g.fillStyle = g.strokeStyle = '#14172b';
+    g.lineWidth = 2.6; g.lineCap = g.lineJoin = 'round';
+    if (ic.fill) g.fill(new Path2D(ic.d)); else g.stroke(new Path2D(ic.d));
+    if (ic.d2) g.fill(new Path2D(ic.d2));
+    g.restore();
+  });
+}
+const boostMat = {};
+for (const [id, b] of Object.entries(BOOSTS)) boostMat[id] = lam('#ffffff', { map: b.glyph ? letterTex(b.glyph, b.color) : iconTex(b.icon, b.color), emissive: '#222222' });
+
+// Exit gate, entrance pad, shield bubble, escort drones, EMP ring.
+const padGeo = new THREE.PlaneGeometry(7, 7);
+const padTex = pixelTexture(32, (g, sz) => {
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, sz, 2); g.fillRect(0, sz - 2, sz, 2); g.fillRect(0, 0, 2, sz); g.fillRect(sz - 2, 0, 2, sz);
+  // Chevrons point to the bottom of the canvas, which faces north once the pad lies flat.
+  for (const y0 of [8, 16]) for (let i = 0; i < 7; i++) { g.fillRect(9 + i, y0 + i, 2, 2); g.fillRect(21 - i, y0 + i, 2, 2); }
+});
+const gate = new THREE.Group();
+const gateField = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 4.2), new THREE.MeshBasicMaterial({ color: '#ff3b5c', transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false }));
+gateField.position.y = 2.1;
+gate.add(part(FM.core, 1.2, 4.6, 1.2, -3.8, 2.3, 0), part(FM.core, 1.2, 4.6, 1.2, 3.8, 2.3, 0), part(FM.core, 8.8, 0.8, 1.2, 0, 4.9, 0), gateField);
+const exitPad = new THREE.Mesh(padGeo, new THREE.MeshBasicMaterial({ color: '#ff3b5c', map: padTex, transparent: true, opacity: 0.3, depthWrite: false }));
+exitPad.rotation.x = -Math.PI / 2;
+const entryPad = new THREE.Mesh(padGeo, new THREE.MeshBasicMaterial({ color: '#f6eed2', map: padTex, transparent: true, opacity: 0.5, depthWrite: false }));
+entryPad.rotation.x = -Math.PI / 2;
+const shieldMesh = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: '#56e8ff', transparent: true, opacity: 0.18, depthWrite: false }));
+shieldMesh.scale.setScalar(2.4);
+const droneMeshes = [0, 1, 2].map(() => shadowed(new THREE.Mesh(crawlerGeo, lam('#43e0d6', { emissive: '#0b5a56', flatShading: true }))));
+for (const d of droneMeshes) d.scale.setScalar(0.75);
+const pulseRing = new THREE.Mesh(new THREE.RingGeometry(0.78, 1, 64), new THREE.MeshBasicMaterial({ color: '#b4c4ff', transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+const pulseDisc = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: '#7d97ff', transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+for (const m of [pulseRing, pulseDisc]) m.rotation.x = -Math.PI / 2;
+pulseRing.position.y = 0.35;
+pulseDisc.position.y = 0.3;
+for (const o of [gate, exitPad, entryPad, shieldMesh, pulseRing, pulseDisc, ...droneMeshes]) { o.visible = false; scene.add(o); }
+
+// Uplink zone: hold it to charge the exit gate. The ring fills, the beam climbs, the gem spins up.
+const UPLINK_R = 4.5;
+const uplink = new THREE.Group();
+const upRing = new THREE.Mesh(new THREE.RingGeometry(UPLINK_R - 0.4, UPLINK_R, 48), new THREE.MeshBasicMaterial({ color: '#56e8ff', transparent: true, opacity: 0.75, depthWrite: false, side: THREE.DoubleSide }));
+const upFill = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: '#56e8ff', transparent: true, opacity: 0.25, depthWrite: false }));
+for (const m of [upRing, upFill]) m.rotation.x = -Math.PI / 2;
+upRing.position.y = 0.06;
+upFill.position.y = 0.05;
+const upGem = new THREE.Mesh(crawlerGeo, new THREE.MeshBasicMaterial({ color: '#56e8ff', transparent: true }));
+upGem.position.y = 3.2;
+upGem.scale.setScalar(0.7);
+const upBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1, 8, 1, true), new THREE.MeshBasicMaterial({ color: '#56e8ff', transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
+uplink.add(upRing, upFill, upGem, upBeam, part(FM.base, 0.5, 2.4, 0.5, 0, 1.2, 0));
+uplink.visible = false;
+scene.add(uplink);
+
+// Health bars for the tougher enemies: billboards that always face the camera.
+const barGeo = new THREE.PlaneGeometry(1, 1);
+const barBg = new THREE.MeshBasicMaterial({ color: '#14172b', depthTest: false });
+const barFg = new THREE.MeshBasicMaterial({ color: '#ff4b5c', depthTest: false });
+function makeBar(w) {
+  const g = new THREE.Group();
+  const bg = new THREE.Mesh(barGeo, barBg); bg.scale.set(w + 0.24, 0.46, 1); bg.renderOrder = 10;
+  const fg = new THREE.Mesh(barGeo, barFg); fg.scale.set(w, 0.26, 1); fg.position.z = 0.01; fg.renderOrder = 11;
+  g.add(bg, fg);
+  g.userData = { fg, w };
+  return g;
+}
+
+// Player health over the tank: a segment per heart, armour charges in cyan.
+const pbar = new THREE.Group();
+const pbarBg = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: '#14172b', transparent: true, depthTest: false }));
+pbarBg.renderOrder = 12;
+pbar.add(pbarBg);
+const pbarSegs = [];
+for (let i = 0; i < 12; i++) {
+  const m = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: '#ff4b5c', transparent: true, depthTest: false }));
+  m.renderOrder = 13;
+  m.position.z = 0.01;
+  pbar.add(m);
+  pbarSegs.push(m);
+}
+pbar.visible = false;
+scene.add(pbar);
+let pbarSig = '', pbarT = 0;
+const PBAR_SHOW = 2.5;   // seconds the bar stays up after hearts or armour change
+
+// Floating signs that name the uplink and the gate.
+function makeLabel(text, color) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 96;
+  const g = c.getContext('2d');
+  g.font = 'bold 46px "Silkscreen", "Courier New", monospace';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 10; g.lineJoin = 'round'; g.strokeStyle = '#14172b';
+  g.strokeText(text, 256, 50);
+  g.fillStyle = color;
+  g.fillText(text, 256, 50);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, fog: false }));
+  sp.scale.set(10, 1.9, 1);
+  return sp;
+}
+const upLabel = makeLabel('HOLD TO CHARGE', '#56e8ff');
+upLabel.position.y = 6.4;
+uplink.add(upLabel);
+const gateLocked = makeLabel('EXIT LOCKED', '#ff4b5c'), gateOpen = makeLabel('EXIT', '#6cf0a0');
+gateLocked.position.y = gateOpen.position.y = 6.8;
+gate.add(gateLocked, gateOpen);
+
+// ============================================================
+// Bullet Rogue: run state
+// ============================================================
+const RG = {
+  depth: 1, level: 1, xp: 0, xpNext: xpNeed(1), pending: 0, hearts: 5, kills: 0, time: 0, grazes: 0,
+  skills: {}, equip: [], slots: 3, st: null, rerolls: 1,
+  armor: 0, armorT: 0, pulseT: 0, pulseAnim: 1, pulseR: 0, regenT: 0, droneA: 0, droneTick: 0,
+  dashT: 0, dashCd: 0, dashX: 0, dashZ: 1, ghost: 0, ramHit: new Set(),
+  turretA: 0, target: null, retarget: 0,
+  maze: null, flow: null, flowCell: -1, exitCell: 0, exitX: 0, exitZ: 0, exitOpen: false, exitFlow: null,
+  uplink: null, inUplink: false, waveT: 0, raids: 0, mazeTime: 0,
+  coresLeft: 0, coreCount: 0, boss: null, idle: 0,
+  streak: 0, streakT: 0, bestStreak: 0,
+  enemies: [], pickups: [], lastGraze: 0, slotSig: '', stripSig: '',
+};
+let pbs = [], ebs = [], orbs = [];
+
+function rogueStats() {
+  const s = RG.skills, eq = (id) => (RG.equip.find((e) => e.id === id) || { lvl: 0 }).lvl;
+  RG.st = {
+    fireRate: 3 * (1 + 0.1 * s.reload),
+    damage: 10 * (1 + 0.1 * s.damage),
+    moveSpeed: 11 * (1 + 0.06 * s.engine),
+    turnRate: 7 * (1 + 0.05 * s.engine),
+    traverse: 8 * (1 + 0.08 * s.engine),
+    bulletSpeed: 30 * (1 + 0.1 * s.velocity),
+    range: Math.min(40, 21 * (1 + 0.05 * s.velocity) * (eq('homing') === 3 ? 1.15 : 1)),
+    crit: Math.min(1, 0.05 + 0.05 * s.crit),
+    xpMult: 1 + 0.1 * s.salvage,
+    magnet: 6 * (1 + 0.2 * s.magnet),
+    maxHearts: 5 + s.plating,
+    dashCd: dashCdFor(s.nitro),
+    regen: regenFor(s.regen),
+    ram: 1.5 * s.ram,
+    shots: 1 + eq('multi'),
+    bounces: eq('bounce'),
+    bounceBonus: eq('bounce') === 3 ? 1.25 : 1,
+    homing: [0, 2.4, 4.2, 7][eq('homing')],
+    pierce: eq('pierce'),
+    flakR: [0, 2.4, 3.1, 3.9][eq('flak')], flakDmg: [0, 0.5, 0.7, 0.9][eq('flak')],
+    armorMax: eq('armor') === 3 ? 2 : eq('armor') ? 1 : 0, armorRecharge: [0, 10, 7, 5][eq('armor')],
+    drones: eq('drones'),
+    pulseEvery: [0, 6, 5, 4][eq('pulse')], pulseR: [0, 7, 8.5, 10][eq('pulse')],
+  };
+}
+
+function startRogueRun() {
+  Object.assign(RG, {
+    depth: 1, level: 1, xp: 0, xpNext: xpNeed(1), pending: 0, kills: 0, time: 0, grazes: 0,
+    skills: Object.fromEntries(Object.keys(SKILLS).map((k) => [k, 0])), equip: [], slots: 3, rerolls: 1,
+    armor: 0, armorT: 0, pulseT: 0, regenT: 0, dashCd: 0, streak: 0, streakT: 0, bestStreak: 0, slotSig: '', stripSig: '',
+  });
+  rogueStats();
+  RG.hearts = RG.st.maxHearts;
+  buildMaze(1);
+}
+
+function clearRogue() {
+  for (const e of RG.enemies) { scene.remove(e.mesh); if (e.bar) scene.remove(e.bar); }
+  for (const k of RG.pickups) scene.remove(k.mesh);
+  RG.enemies = []; RG.pickups = []; RG.boss = null; RG.target = null; RG.uplink = null;
+  pbs = []; ebs = []; orbs = [];
+  ebCore.count = ebGlow.count = pbMesh.count = orbMesh.count = mazeMesh.count = 0;
+  for (const o of [gate, exitPad, entryPad, shieldMesh, pulseRing, pulseDisc, uplink, pbar, ...droneMeshes]) o.visible = false;
+  player.mesh.userData.turret.rotation.y = 0;
+  ui.hurt.classList.remove('low');
+  hudCache.lowHp = false;
+  pbarSig = '';
+  pbarT = 0;
+}
+
+// ============================================================
+// Bullet Rogue: maze
+// ============================================================
+// Cell walls as bits: +z, +x, -z, -x.
+const DIRS = [
+  { bit: 1, dx: 0, dz: 1, opp: 4 },
+  { bit: 2, dx: 1, dz: 0, opp: 8 },
+  { bit: 4, dx: 0, dz: -1, opp: 1 },
+  { bit: 8, dx: -1, dz: 0, opp: 2 },
+];
+const popcount = (c) => (c & 1) + ((c >> 1) & 1) + ((c >> 2) & 1) + ((c >> 3) & 1);
+
+function makeMaze(n, boss) {
+  const cells = new Uint8Array(n * n).fill(15);
+  const idx = (x, z) => z * n + x;
+  const inb = (x, z) => x >= 0 && z >= 0 && x < n && z < n;
+  const open = (x, z, d) => { cells[idx(x, z)] &= ~d.bit; cells[idx(x + d.dx, z + d.dz)] &= ~d.opp; };
+  // Recursive backtracker for a perfect maze...
+  const seen = new Uint8Array(n * n);
+  const stack = [[Math.floor(n / 2), 0]];
+  seen[idx(Math.floor(n / 2), 0)] = 1;
+  while (stack.length) {
+    const [x, z] = stack[stack.length - 1];
+    const opts = DIRS.filter((d) => inb(x + d.dx, z + d.dz) && !seen[idx(x + d.dx, z + d.dz)]);
+    if (!opts.length) { stack.pop(); continue; }
+    const d = opts[Math.floor(Math.random() * opts.length)];
+    open(x, z, d);
+    seen[idx(x + d.dx, z + d.dz)] = 1;
+    stack.push([x + d.dx, z + d.dz]);
+  }
+  // ...then knock through most dead ends and add a few loops, so a fight always has an escape route.
+  for (let z = 0; z < n; z++) {
+    for (let x = 0; x < n; x++) {
+      const c = cells[idx(x, z)];
+      if (popcount(c) !== 3 || Math.random() > 0.7) continue;
+      const opts = DIRS.filter((d) => (c & d.bit) && inb(x + d.dx, z + d.dz));
+      if (opts.length) open(x, z, opts[Math.floor(Math.random() * opts.length)]);
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    const x = Math.floor(Math.random() * n), z = Math.floor(Math.random() * n);
+    const opts = DIRS.filter((d) => (cells[idx(x, z)] & d.bit) && inb(x + d.dx, z + d.dz));
+    if (opts.length) open(x, z, opts[Math.floor(Math.random() * opts.length)]);
+  }
+  const rooms = [];
+  const carve = (x0, z0, w, h) => {
+    for (let z = z0; z < z0 + h; z++) {
+      for (let x = x0; x < x0 + w; x++) {
+        if (x + 1 < x0 + w) open(x, z, DIRS[1]);
+        if (z + 1 < z0 + h) open(x, z, DIRS[0]);
+      }
+    }
+    rooms.push({ x0, z0, w, h });
+  };
+  if (boss) carve(Math.floor(n / 2) - 1, Math.floor(n / 2) - 1, 3, 3);
+  else {
+    for (let k = 0; k < (n >= 6 ? 2 : 1); k++) {
+      for (let tries = 0; tries < 12; tries++) {
+        const x0 = Math.floor(Math.random() * (n - 1)), z0 = 1 + Math.floor(Math.random() * (n - 2));
+        if (rooms.some((r) => x0 < r.x0 + r.w + 1 && x0 + 3 > r.x0 && z0 < r.z0 + r.h + 1 && z0 + 3 > r.z0)) continue;
+        carve(x0, z0, 2, 2);
+        break;
+      }
+    }
+  }
+  return { n, cells, rooms, idx, inb };
+}
+
+// Wall boxes [x0, x1, z0, z1]; collinear wall runs merge into one box.
+function mazeWalls(m) {
+  const n = m.n, h = n * CELL / 2, T = MAZE_T, out = [];
+  for (let k = 0; k <= n; k++) {
+    let run = -1;
+    for (let x = 0; x <= n; x++) {
+      const has = x < n && (k < n ? m.cells[m.idx(x, k)] & 4 : m.cells[m.idx(x, n - 1)] & 1);
+      if (has && run < 0) run = x;
+      if (!has && run >= 0) { out.push([-h + run * CELL - T / 2, -h + x * CELL + T / 2, -h + k * CELL - T / 2, -h + k * CELL + T / 2]); run = -1; }
+    }
+  }
+  for (let k = 0; k <= n; k++) {
+    let run = -1;
+    for (let z = 0; z <= n; z++) {
+      const has = z < n && (k < n ? m.cells[m.idx(k, z)] & 8 : m.cells[m.idx(n - 1, z)] & 2);
+      if (has && run < 0) run = z;
+      if (!has && run >= 0) { out.push([-h + k * CELL - T / 2, -h + k * CELL + T / 2, -h + run * CELL - T / 2, -h + z * CELL + T / 2]); run = -1; }
+    }
+  }
+  return out;
+}
+
+// Breadth-first distance (in cells) from one cell to every other.
+function mazeDist(m, from) {
+  const d = new Int16Array(m.n * m.n).fill(-1), q = [from];
+  d[from] = 0;
+  for (let qi = 0; qi < q.length; qi++) {
+    const i = q[qi], x = i % m.n, z = Math.floor(i / m.n);
+    for (const dir of DIRS) {
+      if (m.cells[i] & dir.bit || !m.inb(x + dir.dx, z + dir.dz)) continue;
+      const j = m.idx(x + dir.dx, z + dir.dz);
+      if (d[j] < 0) { d[j] = d[i] + 1; q.push(j); }
+    }
+  }
+  return d;
+}
+const cellCenter = (m, i) => ({ x: -m.n * CELL / 2 + (i % m.n + 0.5) * CELL, z: -m.n * CELL / 2 + (Math.floor(i / m.n) + 0.5) * CELL });
+function cellAt(x, z) {
+  const m = RG.maze, h = m.n * CELL / 2;
+  return m.idx(clamp(Math.floor((x + h) / CELL), 0, m.n - 1), clamp(Math.floor((z + h) / CELL), 0, m.n - 1));
+}
+// Next cell downhill on a distance field, or -1 when already there.
+function stepToward(field, from) {
+  const m = RG.maze, x = from % m.n, z = Math.floor(from / m.n);
+  let best = -1, bd = field[from];
+  for (const d of DIRS) {
+    if (m.cells[from] & d.bit || !m.inb(x + d.dx, z + d.dz)) continue;
+    const j = m.idx(x + d.dx, z + d.dz);
+    if (field[j] >= 0 && field[j] < bd) { bd = field[j]; best = j; }
+  }
+  return best;
+}
+
+function buildMaze(depth) {
+  clearArena();
+  clearRogue();
+  RG.depth = depth;
+  const boss = depth % 5 === 0;
+  G.palette = PALETTES[(depth - 1) % PALETTES.length];
+  applyPalette(G.palette);
+  const n = boss ? 7 : Math.min(5 + Math.floor((depth - 1) / 3), 8);
+  const m = RG.maze = makeMaze(n, boss);
+  for (const [x0, x1, z0, z1] of mazeWalls(m)) walls.push({ x0, x1, z0, z1, mesh: null });
+  indexWalls();
+  walls.forEach((w, i) => {
+    dummy.position.set((w.x0 + w.x1) / 2, WALL_H / 2, (w.z0 + w.z1) / 2);
+    dummy.rotation.set(0, 0, 0);
+    dummy.scale.set(w.x1 - w.x0, WALL_H, w.z1 - w.z0);
+    dummy.updateMatrix();
+    mazeMesh.setMatrixAt(i, dummy.matrix);
+  });
+  mazeMesh.count = walls.length;
+  mazeMesh.instanceMatrix.needsUpdate = true;
+
+  // Entrance on the south edge, exit on the north edge as far along the maze as possible.
+  const entry = m.idx(Math.floor(n / 2), 0), dist = mazeDist(m, entry);
+  let exit = m.idx(0, n - 1);
+  for (let x = 1; x < n; x++) if (dist[m.idx(x, n - 1)] > dist[exit]) exit = m.idx(x, n - 1);
+  const ec = cellCenter(m, exit), sc = cellCenter(m, entry);
+  RG.exitCell = exit; RG.exitX = ec.x; RG.exitZ = ec.z + 1.5;
+  RG.exitOpen = false; RG.exitFlow = null;
+  gate.position.set(ec.x, 0, ec.z + CELL / 2 - MAZE_T / 2 - 0.7);
+  exitPad.position.set(RG.exitX, 0.04, RG.exitZ);
+  entryPad.position.set(sc.x, 0.04, sc.z);
+  exitPad.material.color.set('#ff3b5c');
+  gateField.material.color.set('#ff3b5c');
+  gate.visible = exitPad.visible = entryPad.visible = true;
+  gateLocked.visible = true;
+  gateOpen.visible = false;
+  RG.lockedAt = -9;
+
+  populateMaze(m, dist, entry, exit, boss);
+  if (RG.uplink) {
+    uplink.position.set(RG.uplink.x, 0, RG.uplink.z);
+    uplink.visible = true;
+    uplink.scale.setScalar(1);
+    upFill.material.opacity = 0.25; upBeam.material.opacity = 0.35; upGem.material.opacity = 1;
+  }
+  RG.mazeTime = 0; RG.raids = 0; RG.waveT = 1.2; RG.inUplink = false;
+
+  resetPlayer();
+  player.x = sc.x; player.z = sc.z - 2;
+  RG.turretA = 0; RG.target = null; RG.flowCell = -1; RG.dashT = 0; RG.ghost = 0; RG.idle = 0;
+  RG.pulseT = RG.st.pulseEvery;
+  snapCam = true;
+  fadeIn();
+  setState('countdown');
+  ui.touch.hidden = !isTouch;
+  banner(`MAZE ${depth}`, boss ? 'BOSS \u00b7 DESTROY THE FORTRESS' : 'HOLD THE BLUE UPLINK \u00b7 CORES CHARGE IT TOO', 1.8);
+  audio.beep(false);
+}
+
+function populateMaze(m, dist, entry, exit, boss) {
+  const d = RG.depth, all = [...Array(m.n * m.n).keys()], used = new Set([entry]);
+  const openings = (i) => 4 - popcount(m.cells[i]);
+  const inRoom = new Set();
+  for (const r of m.rooms) for (let z = r.z0; z < r.z0 + r.h; z++) for (let x = r.x0; x < r.x0 + r.w; x++) inRoom.add(m.idx(x, z));
+  const free = (minDist) => all.filter((i) => dist[i] >= minDist && i !== exit && !used.has(i));
+  const pick = (list) => (list.length ? list.splice(Math.floor(Math.random() * list.length), 1)[0] : null);
+  // A clear spot inside a cell, away from walls and anything already placed there.
+  const spot = (i, r) => {
+    const c = cellCenter(m, i), span = CELL / 2 - MAZE_T - r - 0.5;
+    for (let k = 0; k < 14; k++) {
+      const x = c.x + rand(-span, span), z = c.z + rand(-span, span);
+      if (clearOfWalls(x, z, r + 0.4) && !RG.enemies.some((e) => Math.hypot(e.x - x, e.z - z) < e.r + r + 0.8)) return { x, z };
+    }
+    return c;
+  };
+  const eliteChance = Math.min(0.25, 0.03 + 0.025 * d);
+  const place = (kind, cells, r) => {
+    const i = pick(cells) ?? pick(free(2));
+    if (i === null || i === undefined) return null;
+    used.add(i);
+    const p = spot(i, r);
+    return spawnFoe(kind, p.x, p.z, null, Math.random() < eliteChance);
+  };
+
+  RG.coresLeft = 0;
+  RG.uplink = null;
+  if (boss) {
+    const r = m.rooms[0], c = cellCenter(m, m.idx(r.x0 + 1, r.z0 + 1));
+    RG.boss = spawnFoe('boss', c.x, c.z);
+    for (let z = r.z0; z < r.z0 + r.h; z++) for (let x = r.x0; x < r.x0 + r.w; x++) used.add(m.idx(x, z));
+  } else {
+    // The uplink sits partway along the route, in a room when there is one.
+    const maxD = Math.max(...dist);
+    const mid = all.filter((i) => i !== exit && i !== entry && dist[i] >= Math.max(2, Math.round(maxD * 0.35)) && dist[i] <= Math.round(maxD * 0.75));
+    const rooms = mid.filter((i) => inRoom.has(i));
+    const pool = rooms.length ? rooms : mid.length ? mid : all.filter((i) => i !== exit && i !== entry);
+    const ui = pool[Math.floor(Math.random() * pool.length)], uc = cellCenter(m, ui);
+    RG.uplink = { x: uc.x, z: uc.z, cell: ui, charge: 0, need: Math.min(20, 11 + d), flow: mazeDist(m, ui), tick: 0, col: '' };
+    used.add(ui);
+    // Cores are optional: each one spawns trouble, and destroying it charges the uplink by a third.
+    const nCores = Math.min(2 + Math.floor((d - 1) / 2), 4), cores = [];
+    let cand = all.filter((i) => dist[i] >= 3 && i !== exit && !used.has(i));
+    const gap = (a, b) => Math.abs((a % m.n) - (b % m.n)) + Math.abs(Math.floor(a / m.n) - Math.floor(b / m.n));
+    for (let k = 0; k < nCores && cand.length; k++) {
+      let best = cand[0], bs = -Infinity;
+      for (const i of cand) {
+        const sc = (cores.length ? Math.min(...cores.map((j) => gap(i, j))) * 3 : 0) + gap(i, ui) + dist[i] * 0.6 + Math.random();
+        if (sc > bs) { bs = sc; best = i; }
+      }
+      cores.push(best);
+      cand = cand.filter((i) => i !== best);
+    }
+    for (const i of cores) {
+      const c = cellCenter(m, i);
+      spawnFoe('core', c.x, c.z);
+      used.add(i);
+      RG.coresLeft++;
+    }
+  }
+  RG.coreCount = RG.coresLeft;
+
+  const junctions = free(2).filter((i) => openings(i) >= 3 || inRoom.has(i));
+  const nSentry = boss ? 0 : Math.min(1 + Math.floor(d * 0.7), 8);
+  const nSpin = boss ? 0 : Math.min(Math.floor(d / 2), 4);
+  for (let k = 0; k < nSentry; k++) place('sentry', junctions, 1.5);
+  for (let k = 0; k < nSpin; k++) place('spinner', junctions, 1.5);
+  const roam = free(3);
+  const nGun = boss ? 1 : Math.min(Math.floor(1 + d * 0.8), 10);
+  const nHeavy = d >= 6 && !boss ? Math.min(Math.floor((d - 4) / 2), 4) : 0;
+  for (let k = 0; k < nGun; k++) place('gunner', roam, 1.5);
+  for (let k = 0; k < nHeavy; k++) place('heavy', roam, 2.1);
+  const groups = Math.min(1 + Math.floor(d * 0.6), 7);
+  for (let g = 0; g < groups; g++) {
+    const i = pick(roam) ?? pick(free(2));
+    if (i === null || i === undefined) break;
+    used.add(i);
+    for (let n = 0, size = 3 + (Math.random() < 0.5 ? 1 : 0); n < size; n++) { const p = spot(i, 1); spawnFoe('crawler', p.x, p.z); }
+  }
+  // Supplies: a gear crate waits in the deepest dead end from maze 2, boosts in the others.
+  const ends = all.filter((i) => openings(i) === 1 && i !== entry && i !== exit && !used.has(i));
+  if (!boss && d >= 2 && ends.length) {
+    ends.sort((a, b) => dist[b] - dist[a]);
+    const c = cellCenter(m, ends.shift());
+    dropBoost(c.x, c.z, 'cache');
+  }
+  for (let k = 0; k < 2; k++) {
+    const i = pick(ends);
+    if (i === null) break;
+    const c = cellCenter(m, i);
+    dropBoost(c.x, c.z);
+  }
+}
+
+// ============================================================
+// Bullet Rogue: enemies
+// ============================================================
+function spawnFoe(kind, x, z, home = null, elite = false) {
+  const def = FOES[kind], s = (1 + 0.22 * (RG.depth - 1)) * (elite ? 3 : 1);
+  const e = {
+    kind, def, x, z, r: def.r, hp: def.hp * s, maxHp: def.hp * s, a: rand(0, TAU), vx: 0, vz: 0,
+    age: 0, cd: rand(0.8, 2.2), cd2: 0, ph: rand(0, 2), phase: -1, ang: rand(0, TAU), dir: Math.random() < 0.5 ? -1 : 1,
+    awake: false, aggro: false, alive: true, pop: 0, los: false, losT: 0, dist: 99, home, kids: 0, spawnT: 2, spawned: 0,
+    mesh: def.make(), bar: null, elite,
+  };
+  e.body = e.mesh.userData.body || null;
+  // Elites: gold, three times the armour, triple experience and a guaranteed pickup.
+  if (elite) e.mesh.traverse((o) => { if (o.isMesh && o.material !== M.tread) o.material = FM.elite; });
+  e.mesh.position.set(x, 0, z);
+  e.mesh.scale.setScalar(0.001);
+  scene.add(e.mesh);
+  if (def.bar || elite) { e.bar = makeBar(def.r * 1.5); scene.add(e.bar); }
+  if (home) home.kids++;
+  RG.enemies.push(e);
+  return e;
+}
+
+function moveFoe(e, dx, dz, sp, dt) {
+  e.vx = dx * sp; e.vz = dz * sp;
+  e.x += e.vx * dt; e.z += e.vz * dt;
+  collideWalls(e, e.r);
+  if (sp > 0.1) e.a += clamp(angDiff(e.a, Math.atan2(dx, dz)), -5 * dt, 5 * dt);
+  e.mesh.rotation.y = e.a;
+}
+// Straight at the player when in view, otherwise along the maze toward them.
+function seek(e, sp, dt, ux, uz) {
+  if (e.los) return moveFoe(e, ux, uz, sp, dt);
+  const next = stepToward(RG.flow, cellAt(e.x, e.z));
+  const t = next < 0 ? player : cellCenter(RG.maze, next);
+  const tx = t.x - e.x, tz = t.z - e.z, l = Math.hypot(tx, tz) || 1;
+  moveFoe(e, tx / l, tz / l, sp, dt);
+}
+function aimTurret(e, ux, uz) {
+  const t = e.mesh.userData.turret;
+  if (t) t.rotation.y = Math.atan2(ux, uz) - e.a;
+}
+
+function ebShot(x, z, ang, speed, color, r = 0.36, split = 0) {
+  if (ebs.length >= EB_MAX) return;
+  const c = EB_COL[color];
+  ebs.push({ x, z, vx: Math.sin(ang) * speed, vz: Math.cos(ang) * speed, r, age: 0, split, core: c.core, glow: c.glow, grazed: false, dead: false });
+  audio.eshot();
+}
+const ring = (x, z, n, off, speed, color) => { for (let i = 0; i < n; i++) ebShot(x, z, off + i * TAU / n, speed, color); };
+const fan = (x, z, aim, n, step, speed, color) => { for (let i = 0; i < n; i++) ebShot(x, z, aim + (i - (n - 1) / 2) * step, speed, color); };
+
+const FOE_AI = {
+  crawler(e, dt, ux, uz, dist) {
+    e.body.rotation.y += dt * 8;
+    seek(e, Math.min(e.def.speed * (1 + 0.05 * (RG.depth - 1)), 11.5), dt, ux, uz);
+    if (dist < e.r + 1.3) {
+      if (RG.dashT > 0) { popup('RAMMED', e.x, 2.6, e.z, 'bank'); killEnemy(e); }
+      else if (player.invuln <= 0) { rogueHurt(); killEnemy(e, true); }
+    }
+  },
+  gunner(e, dt, ux, uz, dist) {
+    const sp = e.def.speed * (1 + 0.03 * (RG.depth - 1));
+    if (!e.los || dist > 15) seek(e, sp, dt, ux, uz);
+    else if (dist < 8) moveFoe(e, -ux, -uz, sp, dt);
+    else {
+      e.ph -= dt;
+      if (e.ph <= 0) { e.dir = -e.dir; e.ph = rand(1.2, 2.6); }
+      moveFoe(e, -uz * e.dir, ux * e.dir, sp * 0.7, dt);   // strafe around the player
+    }
+    aimTurret(e, ux, uz);
+    e.cd -= dt;
+    if (e.los && dist < 26 && e.cd <= 0) {
+      fan(e.x, e.z, Math.atan2(ux, uz), RG.depth >= 5 ? 5 : 3, 0.2, ebSpeed(10), 'orange');
+      e.cd = Math.max(1.3, 2.4 - 0.08 * RG.depth) * rand(0.85, 1.15);
+    }
+  },
+  sentry(e, dt, ux, uz, dist) {
+    e.body.rotation.y += dt * 0.8;
+    const n = Math.min(10 + Math.floor(RG.depth / 2), 18);
+    e.cd -= dt;
+    if (dist < 30 && e.cd <= 0) {
+      ring(e.x, e.z, n, e.ang, ebSpeed(7.5), 'pink');
+      e.ang += Math.PI / n;
+      if (RG.depth >= 4) e.cd2 = 0.3;   // a second, offset ring
+      e.cd = Math.max(1.4, 2.5 - 0.07 * RG.depth);
+    }
+    if (e.cd2 > 0 && (e.cd2 -= dt) <= 0) ring(e.x, e.z, n, e.ang, ebSpeed(6.4), 'pink');
+  },
+  spinner(e, dt, ux, uz, dist) {
+    e.body.rotation.y += dt * 4 * e.dir;
+    e.ph += dt;
+    if (e.ph > 4.8) { e.ph = 0; e.dir = -e.dir; }
+    if (e.ph > 3 || dist > 30) return;   // three seconds of spiral, then a breather
+    e.ang += 2.3 * e.dir * dt;
+    e.cd -= dt;
+    if (e.cd <= 0) {
+      e.cd = 0.11;
+      const arms = RG.depth >= 6 ? 3 : 2;
+      for (let k = 0; k < arms; k++) ebShot(e.x, e.z, e.ang + k * TAU / arms, ebSpeed(6.5), 'violet');
+    }
+  },
+  heavy(e, dt, ux, uz, dist) {
+    if (!e.los || dist > 13) seek(e, e.def.speed, dt, ux, uz);
+    else { e.vx = e.vz = 0; }
+    aimTurret(e, ux, uz);
+    e.cd -= dt;
+    if (e.los && dist < 26 && e.cd <= 0) {
+      ebShot(e.x, e.z, Math.atan2(ux, uz), ebSpeed(6), 'red', 0.8, 1.0);   // splits into a ring after a second
+      e.cd = Math.max(2.2, 3.4 - 0.05 * RG.depth);
+    }
+  },
+  core(e, dt, ux, uz, dist) {
+    e.body.scale.setScalar(0.85 + Math.sin(e.age * 5) * 0.12);
+    e.cd -= dt;
+    if (dist < 30 && e.cd <= 0) {
+      ring(e.x, e.z, 12, e.ang, ebSpeed(6.5), 'red');
+      e.ang += 0.26;
+      e.cd = Math.max(2.6, 3.8 - 0.08 * RG.depth);
+    }
+    e.spawnT -= dt;
+    if (dist < 42 && e.spawnT <= 0 && e.kids < 3 + Math.floor(RG.depth / 2) && RG.enemies.length < ENEMY_CAP) {
+      e.spawnT = Math.max(2.8, 5.6 - 0.2 * RG.depth);
+      const kind = RG.depth >= 3 && ++e.spawned % 3 === 0 ? 'gunner' : 'crawler';
+      const ang = rand(0, TAU), x = e.x + Math.sin(ang) * 3.2, z = e.z + Math.cos(ang) * 3.2;
+      if (clearOfWalls(x, z, 1.6)) { spawnFoe(kind, x, z, e).aggro = true; flash(x, 1, z, 1.6, '#ff3b5c', 0.25); }
+    }
+  },
+  boss(e, dt, ux, uz, dist) {
+    const rage = e.hp < e.maxHp * 0.5 ? 1.35 : 1;
+    if (dist > 11) seek(e, e.def.speed, dt, ux, uz);
+    else { e.vx = e.vz = 0; }
+    aimTurret(e, ux, uz);
+    e.ph += dt;
+    const phase = Math.floor(e.ph / 6) % 3;
+    if (phase !== e.phase) {
+      e.phase = phase; e.cd = 0.6;
+      if (phase === 2) {
+        for (let k = 0; k < 3 && RG.enemies.length < ENEMY_CAP; k++) {
+          const a = rand(0, TAU), x = e.x + Math.sin(a) * 5, z = e.z + Math.cos(a) * 5;
+          if (clearOfWalls(x, z, 1.2)) spawnFoe('crawler', x, z).aggro = true;
+        }
+      }
+    }
+    e.cd -= dt * rage;
+    if (e.cd > 0) return;
+    const aim = Math.atan2(ux, uz);
+    if (phase === 0) { fan(e.x, e.z, aim, 7, 0.16, ebSpeed(11), 'orange'); e.cd = 0.8; }
+    else if (phase === 1) {
+      e.ang += 0.31;
+      const arms = rage > 1 ? 5 : 4;
+      for (let k = 0; k < arms; k++) ebShot(e.x, e.z, e.ang + k * TAU / arms, ebSpeed(7), 'violet');
+      e.cd = 0.09;
+    } else { ring(e.x, e.z, 18, e.ang, ebSpeed(7.5), 'pink'); e.ang += Math.PI / 18; e.cd = 1.1; }
+  },
+};
+
+function updateEnemies(dt, active) {
+  const p = player;
+  let awake = 0;
+  for (const e of RG.enemies) {
+    if (!e.alive) continue;
+    e.age += dt;
+    const dx = p.x - e.x, dz = p.z - e.z, dist = Math.hypot(dx, dz) || 0.001;
+    e.dist = dist;
+    e.losT -= dt;
+    if (e.losT <= 0) {
+      e.losT = 0.2 + Math.random() * 0.15;
+      e.los = !raycastWalls(e.x, e.z, dx / dist, dz / dist, Math.max(0, dist - 1.5), 0.3);
+    }
+    // Movers wake when they can see you or are two cells away, then give chase; turrets just need range.
+    if (e.def.speed) {
+      if (!e.aggro && dist < 36 && (e.los || RG.flow[cellAt(e.x, e.z)] <= 2)) e.aggro = true;
+      if (dist > 60) e.aggro = false;
+      e.awake = e.aggro;
+    } else e.awake = dist < 36;
+    if (e.awake) awake++;
+    e.pop = Math.max(0, e.pop - dt * 6);
+    e.mesh.scale.setScalar(e.def.scale * (e.elite ? 1.15 : 1) * Math.min(1, e.age / 0.3) * (1 + e.pop * 0.18));
+    if (active && e.awake && e.age > 0.3) FOE_AI[e.kind](e, dt, dx / dist, dz / dist, dist);
+    else if (e.body) e.body.rotation.y += dt;
+    if (!e.alive) continue;
+    e.mesh.position.set(e.x, 0, e.z);
+  }
+  // Moving enemies shoulder each other apart.
+  for (const a of RG.enemies) {
+    if (!a.alive || (!a.vx && !a.vz)) continue;
+    for (const b of RG.enemies) {
+      if (a === b || !b.alive) continue;
+      const dx = a.x - b.x, dz = a.z - b.z, d = Math.hypot(dx, dz), min = a.r + b.r;
+      if (d >= min || d < 1e-6) continue;
+      const k = (min - d) / d * 0.5;
+      a.x += dx * k; a.z += dz * k;
+    }
+  }
+  RG.enemies = RG.enemies.filter((e) => e.alive);
+  RG.idle = awake ? 0 : RG.idle + dt;
+}
+
+function damageEnemy(e, dmg, crit, x, z) {
+  if (!e.alive) return;
+  e.hp -= dmg;
+  e.pop = 1;
+  if (x !== undefined) burst(x, 1.3, z, crit ? '#ffe14f' : '#fff3b0', crit ? 3 : 1, 5, crit ? 0.32 : 0.2);
+  if (e.hp <= 0) killEnemy(e);
+}
+
+function killEnemy(e, noXp = false) {
+  if (!e.alive) return;
+  e.alive = false;
+  scene.remove(e.mesh);
+  if (e.bar) scene.remove(e.bar);
+  if (e.home) e.home.kids--;
+  const big = e.r >= 1.8;
+  burst(e.x, 1.2, e.z, e.def.debris, big ? 26 : e.r > 1.2 ? 16 : 9, big ? 16 : 11, big ? 0.6 : 0.42);
+  burst(e.x, 1, e.z, SMOKE, big ? 6 : 2, 2, 0.5, { smoke: true });
+  flash(e.x, 1.4, e.z, e.r * 2.2, '#ffd27a', 0.28);
+  scorch(e.x, e.z, e.r * 1.4);
+  addShake(big ? 0.6 : 0.12);
+  audio.boom(big ? 1.2 : 0.45);
+  if (noXp) return;
+  RG.kills++;
+  RG.streak = RG.streakT > 0 ? RG.streak + 1 : 1;
+  RG.streakT = 2;
+  RG.bestStreak = Math.max(RG.bestStreak, RG.streak);
+  if (STREAKS[RG.streak]) { popup(STREAKS[RG.streak], player.x, 5, player.z, 'big'); audio.bonus(); }
+  dropXp(e.x, e.z, e.def.xp * (1 + 0.25 * (RG.depth - 1)) * (e.elite ? 3 : 1) * streakMult());
+  if (e.elite) { popup('ELITE DOWN', e.x, 4, e.z, 'time'); dropBoost(e.x, e.z); }
+  else if (e.kind === 'heavy' && Math.random() < 0.25) dropBoost(e.x, e.z);
+  else if ((e.kind === 'sentry' || e.kind === 'spinner') && Math.random() < 0.06) dropBoost(e.x, e.z);
+  if (e.kind === 'core') {
+    RG.coresLeft--;
+    popup('CORE DOWN', e.x, 5, e.z, 'big', '+35% UPLINK');
+    dropBoost(e.x, e.z);
+    G.hitstop = Math.max(G.hitstop, 0.05);
+    addCharge(0.35);
+  }
+  if (e.kind === 'boss') {
+    RG.boss = null;
+    for (const b of ebs) b.dead = true;
+    for (let k = 0; k < 4; k++) flash(e.x + rand(-3, 3), 2, e.z + rand(-3, 3), 6, '#ffb347', 0.5);
+    addShake(1.3);
+    G.hitstop = 0.12;
+    dropBoost(e.x, e.z, 'crate');
+    openExit();
+  }
+}
+// Kill streak: kills less than two seconds apart keep it alive and boost experience, up to x1.6.
+const STREAKS = { 10: 'RAMPAGE!', 25: 'UNSTOPPABLE!', 50: 'TANKAGEDDON!' };
+const streakMult = () => 1 + Math.min(RG.streak, 40) * 0.015;
+
+// ============================================================
+// Bullet Rogue: player
+// ============================================================
+function updateRoguePlayer(dt, active) {
+  const p = player, st = RG.st;
+  // Screen up is +z and screen right is -x with the north-up camera.
+  const ix = active ? -input.mx : 0, iz = active ? input.my : 0;
+  const mag = Math.min(1, Math.hypot(ix, iz));
+  let target = 0;
+  if (mag > 0.05) {
+    const want = Math.atan2(ix, iz);
+    let diff = angDiff(p.a, want);
+    // Back up rather than turn around when the stick points mostly behind the hull.
+    p.reversing = p.reversing ? Math.abs(diff) > 1.3 : Math.abs(diff) > 2.2;
+    if (p.reversing) diff = angDiff(p.a, want + Math.PI);
+    p.turnVel = moveToward(p.turnVel, clamp(diff * 10, -st.turnRate, st.turnRate), 60 * dt);
+    target = st.moveSpeed * mag * Math.max(0, Math.cos(diff)) * (p.reversing ? -1 : 1);
+  } else {
+    p.turnVel = moveToward(p.turnVel, 0, 60 * dt);
+  }
+  p.a += p.turnVel * dt;
+  const before = p.speed;
+  p.speed = moveToward(p.speed, target, (Math.abs(target) > Math.abs(p.speed) ? 48 : 40) * dt);
+
+  RG.dashCd -= dt;
+  if (input.dash) {
+    input.dash = false;
+    if (active && RG.dashCd <= 0) startDash(ix, iz, mag);
+  }
+  let dvx = 0, dvz = 0;
+  if (RG.dashT > 0) {
+    RG.dashT -= dt;
+    dvx = RG.dashX * 34; dvz = RG.dashZ * 34;
+    burst(p.x, 0.9, p.z, ['#f2c53d', '#fff1b0'], 1, 1, 0.5, { smoke: true, grow: -0.4 });
+  }
+  if (RG.ghost > 0) RG.ghost -= dt;
+  const decay = Math.exp(-5 * dt);
+  p.kx *= decay; p.kz *= decay;
+  const hx = Math.sin(p.a), hz = Math.cos(p.a);
+  p.x += (hx * p.speed + p.kx + dvx) * dt;
+  p.z += (hz * p.speed + p.kz + dvz) * dt;
+  const n = collideWalls(p, TANK_R);
+  if (n) {
+    const into = -(hx * n.nx + hz * n.nz) * Math.sign(p.speed);
+    if (into > 0) p.speed *= 1 - into * into;
+  }
+  for (const e of RG.enemies) {
+    if (!e.alive || e.kind === 'crawler') continue;
+    const dx = p.x - e.x, dz = p.z - e.z, d = Math.hypot(dx, dz), min = TANK_R + e.r;
+    if (d >= min || d < 1e-6) continue;
+    const k = (min - d) / d;
+    p.x += dx * k; p.z += dz * k;
+  }
+  collideWalls(p, TANK_R);
+  // Battering Ram: a dash hurts every enemy it plows through, once each.
+  if (RG.dashT > 0 && st.ram) {
+    for (const e of RG.enemies) {
+      if (!e.alive || RG.ramHit.has(e) || Math.hypot(e.x - p.x, e.z - p.z) > e.r + TANK_R + 0.4) continue;
+      RG.ramHit.add(e);
+      damageEnemy(e, st.damage * st.ram, false, e.x, e.z);
+      addShake(0.2);
+    }
+  }
+  if (p.invuln > 0) p.invuln -= dt;
+
+  // Turret: track the nearest enemy in clear view and fire on its own.
+  RG.retarget -= dt;
+  if (RG.retarget <= 0) { RG.target = findTarget(); RG.retarget = 0.12; }
+  const tgt = RG.target && RG.target.alive ? RG.target : null;
+  const aim = tgt ? leadAim(tgt) : p.a;
+  RG.turretA += clamp(angDiff(RG.turretA, aim), -st.traverse * dt, st.traverse * dt);
+  p.cooldown -= dt;
+  if (active && tgt && p.cooldown <= 0 && Math.abs(angDiff(RG.turretA, aim)) < 0.3) fireRogue();
+  p.recoil = Math.max(0, p.recoil - dt * 8);
+
+  const accel = (p.speed - before) / Math.max(dt, 1e-3);
+  spring(p.pitch, clamp(-accel * 0.003, -0.08, 0.08), dt);
+  spring(p.roll, clamp(p.turnVel * p.speed * 0.002, -0.08, 0.08), dt);
+  const work = Math.abs(p.speed) * 1.1 + Math.abs(p.turnVel) * 2;
+  if (work > 4) {
+    p.dustAcc += work * dt;
+    while (p.dustAcc > 1) { p.dustAcc -= 1; kickDust(hx, hz); }
+  }
+  // A damaged tank smokes: lightly at two hearts, heavily at one.
+  if (G.state === 'play' && RG.hearts <= 2 && Math.random() < (RG.hearts === 1 ? 0.35 : 0.12)) {
+    burst(p.x + rand(-0.6, 0.6), 1.6, p.z + rand(-0.6, 0.6), ['#2e2e2e', '#4a4a4a', '#1b1b1b'], 1, 1, 0.45, { smoke: true });
+  }
+  const m = p.mesh, hull = m.userData.hull;
+  m.position.set(p.x, 0, p.z);
+  m.rotation.y = p.a;
+  hull.rotation.set(p.pitch.x, 0, p.roll.x);
+  hull.position.y = 0.8 + Math.sin(G.stateTime * 40) * 0.025 * Math.min(1, Math.abs(p.speed) / 8);
+  m.userData.turret.rotation.y = RG.turretA - p.a;
+  m.userData.barrel.position.z = 1.55 - p.recoil * 0.4;
+  if (G.state !== 'over') m.visible = p.invuln > 0 && RG.ghost <= 0 ? Math.floor(p.invuln * 14) % 2 === 0 : true;
+}
+
+function startDash(ix, iz, mag) {
+  let dx = ix, dz = iz;
+  if (mag < 0.2) { dx = Math.sin(player.a); dz = Math.cos(player.a); }
+  else { dx /= mag; dz /= mag; }
+  RG.dashX = dx; RG.dashZ = dz;
+  RG.dashT = 0.17;
+  RG.dashCd = RG.st.dashCd;
+  RG.ramHit.clear();
+  RG.ghost = 0.32;
+  player.invuln = Math.max(player.invuln, 0.32);
+  addShake(0.15);
+  audio.dash();
+}
+
+function findTarget() {
+  const p = player, r2 = RG.st.range * RG.st.range, cands = [];
+  for (const e of RG.enemies) {
+    if (!e.alive || e.age < 0.3) continue;
+    const d2 = (e.x - p.x) ** 2 + (e.z - p.z) ** 2;
+    if (d2 < r2) cands.push([d2, e]);
+  }
+  cands.sort((a, b) => a[0] - b[0]);
+  for (const [d2, e] of cands) {
+    const d = Math.sqrt(d2);
+    if (!raycastWalls(p.x, p.z, (e.x - p.x) / d, (e.z - p.z) / d, Math.max(0, d - e.r), 0.15)) return e;
+  }
+  return null;
+}
+function leadAim(e) {
+  const p = player, lead = Math.hypot(e.x - p.x, e.z - p.z) / RG.st.bulletSpeed;
+  return Math.atan2(e.x + e.vx * lead - p.x, e.z + e.vz * lead - p.z);
+}
+
+function fireRogue() {
+  const p = player, st = RG.st;
+  p.cooldown = 1 / st.fireRate;
+  const n = st.shots, step = n > 1 ? Math.min(0.14, 0.42 / (n - 1)) : 0;
+  for (let i = 0; i < n; i++) spawnPB(RG.turretA + (i - (n - 1) / 2) * step);
+  flash(p.x + Math.sin(RG.turretA) * 2.3, 1.5, p.z + Math.cos(RG.turretA) * 2.3, 0.7, '#fff1b0', 0.08);
+  p.recoil = 1;
+  p.pitch.v -= 0.4;
+  audio.pew();
+}
+function spawnPB(a) {
+  if (pbs.length >= PB_MAX) return;
+  const st = RG.st, p = player, crit = Math.random() < st.crit;
+  const b = {
+    x: p.x, z: p.z, vx: Math.sin(a) * st.bulletSpeed, vz: Math.cos(a) * st.bulletSpeed,
+    life: st.range / st.bulletSpeed * 1.25 + st.bounces * 0.35, dmg: st.damage * (crit ? 2 : 1), crit,
+    bounces: st.bounces, pierce: st.pierce, hit: [], dead: false,
+  };
+  pbs.push(b);
+  if (!movePB(b, 2.2)) b.dead = true;
+}
+
+function movePB(b, dist) {
+  let rem = dist, guard = 0;
+  while (rem > 1e-4 && guard++ < 4) {
+    const spd = Math.hypot(b.vx, b.vz), dx = b.vx / spd, dz = b.vz / spd;
+    const hit = raycastWalls(b.x, b.z, dx, dz, rem, 0.2);
+    if (pbHits(b, dx, dz, hit ? hit.t : rem)) return false;
+    if (!hit) { b.x += dx * rem; b.z += dz * rem; return true; }
+    b.x += dx * (hit.t - 0.01); b.z += dz * (hit.t - 0.01);
+    rem -= hit.t;
+    if (b.bounces <= 0) { burst(b.x, 1.4, b.z, '#fff3b0', 2, 4, 0.18); return false; }
+    b.bounces--;
+    b.dmg *= RG.st.bounceBonus;
+    if (hit.nx) b.vx = -b.vx;
+    if (hit.nz) b.vz = -b.vz;
+    b.hit.length = 0;   // a ricochet may come back for the same enemy
+    burst(b.x, 1.4, b.z, '#56e8ff', 2, 4, 0.18);
+  }
+  return true;
+}
+// Resolves every enemy the shell touches along this segment, nearest first; piercing shells carry on.
+function pbHits(b, dx, dz, len) {
+  for (;;) {
+    let best = -1, be = null;
+    for (const e of RG.enemies) {
+      if (!e.alive || e.age < 0.3 || b.hit.includes(e)) continue;
+      const d = segCircle(b.x, b.z, dx, dz, len, e.x, e.z, e.r + 0.3);
+      if (d >= 0 && (best < 0 || d < best)) { best = d; be = e; }
+    }
+    if (!be) return false;
+    b.hit.push(be);
+    const hx = b.x + dx * best, hz = b.z + dz * best;
+    damageEnemy(be, b.dmg, b.crit, hx, hz);
+    if (RG.st.flakR) flakBurst(hx, hz, be, b.dmg);
+    if (b.pierce > 0) { b.pierce--; continue; }
+    b.x = hx; b.z = hz;
+    return true;
+  }
+}
+function flakBurst(x, z, skip, dmg) {
+  const st = RG.st;
+  for (const e of RG.enemies) if (e.alive && e !== skip && Math.hypot(e.x - x, e.z - z) < st.flakR + e.r) damageEnemy(e, dmg * st.flakDmg, false);
+  flash(x, 1.2, z, st.flakR * 0.9, '#ffb347', 0.2);
+  if (Math.random() < 0.4) burst(x, 1.2, z, ['#ffb347', '#ff6a2b'], 3, 6, 0.25);
+}
+function homeIn(b, dt) {
+  let best = null, bd = 16 * 16;
+  for (const e of RG.enemies) {
+    if (!e.alive || b.hit.includes(e)) continue;
+    const dx = e.x - b.x, dz = e.z - b.z, d2 = dx * dx + dz * dz;
+    if (d2 < bd && dx * b.vx + dz * b.vz > 0) { bd = d2; best = e; }
+  }
+  if (!best) return;
+  const a = Math.atan2(b.vx, b.vz), want = Math.atan2(best.x - b.x, best.z - b.z), sp = Math.hypot(b.vx, b.vz);
+  const na = a + clamp(angDiff(a, want), -RG.st.homing * dt, RG.st.homing * dt);
+  b.vx = Math.sin(na) * sp; b.vz = Math.cos(na) * sp;
+}
+function updatePBullets(dt) {
+  let w = 0;
+  for (const b of pbs) {
+    if (b.dead) continue;
+    b.life -= dt;
+    if (b.life <= 0) continue;
+    if (RG.st.homing) homeIn(b, dt);
+    if (!movePB(b, Math.hypot(b.vx, b.vz) * dt)) continue;
+    pbs[w++] = b;
+  }
+  pbs.length = w;
+}
+
+function hitsWall(x, z, r) {
+  for (const w of wallsNear(x, z)) if (x > w.x0 - r && x < w.x1 + r && z > w.z0 - r && z < w.z1 + r) return true;
+  return false;
+}
+function updateEBullets(dt, active) {
+  const p = player, st = RG.st;
+  const vulnerable = active && p.invuln <= 0 && RG.dashT <= 0;
+  let w = 0;
+  for (const b of ebs) {
+    if (b.dead) continue;
+    b.age += dt;
+    if (b.split && b.age >= b.split) {
+      ring(b.x, b.z, 8, rand(0, TAU), ebSpeed(7.5), 'red');
+      flash(b.x, 1.2, b.z, 1.8, '#ff4b3a', 0.2);
+      continue;
+    }
+    b.x += b.vx * dt; b.z += b.vz * dt;
+    if (b.age > 7 || hitsWall(b.x, b.z, b.r)) continue;
+    let blocked = false;
+    for (let i = 0; i < st.drones; i++) {
+      const d = droneMeshes[i].position;
+      if ((b.x - d.x) ** 2 + (b.z - d.z) ** 2 < (b.r + 0.8) ** 2) { blocked = true; burst(b.x, 1.4, b.z, '#43e0d6', 2, 4, 0.18); break; }
+    }
+    if (blocked) continue;
+    if (active) {
+      const dx = b.x - p.x, dz = b.z - p.z, d2 = dx * dx + dz * dz, hr = b.r + PLAYER_HIT;
+      if (vulnerable && d2 < hr * hr) { rogueHurt(); continue; }
+      if (vulnerable && !b.grazed && d2 < GRAZE_R * GRAZE_R) { b.grazed = true; graze(b); }
+    }
+    ebs[w++] = b;
+  }
+  ebs.length = w;
+}
+function clearBulletsNear(x, z, r) {
+  for (const b of ebs) {
+    if (b.dead || (b.x - x) ** 2 + (b.z - z) ** 2 > r * r) continue;
+    b.dead = true;
+    if (Math.random() < 0.3) burst(b.x, 1.2, b.z, '#ffffff', 1, 3, 0.16);
+  }
+}
+function graze(b) {
+  RG.grazes++;
+  gainXp(0.5);
+  burst(b.x, 1.2, b.z, '#ffffff', 1, 3, 0.16);
+  audio.graze();
+  if (G.stateTime - RG.lastGraze > 1.5) { RG.lastGraze = G.stateTime; popup('GRAZE', player.x, 3, player.z, 'time'); }
+}
+
+function rogueHurt() {
+  const p = player;
+  if (p.invuln > 0 || RG.dashT > 0 || G.state !== 'play') return;
+  if (RG.armor > 0) {
+    RG.armor--;
+    RG.armorT = RG.st.armorRecharge;
+    p.invuln = 0.9;
+    clearBulletsNear(p.x, p.z, 4.5);
+    flash(p.x, 1.4, p.z, 3.4, '#56e8ff', 0.3);
+    popup('BLOCKED', p.x, 3, p.z, 'bank');
+    addShake(0.4);
+    audio.shieldBreak();
+    return;
+  }
+  RG.hearts--;
+  p.invuln = 2;
+  clearBulletsNear(p.x, p.z, 6);
+  burst(p.x, 1.4, p.z, ['#f2c53d', '#ff6a2b', '#ffffff'], 12, 9, 0.35);
+  flash(p.x, 1.4, p.z, 3, '#ff6a2b', 0.3);
+  ui.hurt.style.transition = 'none'; ui.hurt.style.opacity = 0.9;
+  void ui.hurt.offsetWidth;
+  ui.hurt.style.transition = 'opacity 0.7s'; ui.hurt.style.opacity = 0;
+  addShake(0.9);
+  G.hitstop = 0.06;
+  audio.hurt();
+  if (RG.hearts <= 0) rogueDeath();
+}
+
+function dropXp(x, z, total) {
+  let v = Math.max(1, Math.round(total));
+  while (v > 0 && orbs.length < ORB_MAX) {
+    const val = v >= 25 ? 25 : v >= 5 ? 5 : 1;
+    v -= val;
+    const a = rand(0, TAU), s = rand(2, 6);
+    orbs.push({ x, z, v: val, vx: Math.sin(a) * s, vz: Math.cos(a) * s, age: 0, pull: false, sp: 0 });
+  }
+}
+function gainXp(v) {
+  RG.xp += v * RG.st.xpMult;
+}
+function updateOrbs(dt, active) {
+  const p = player, mr = RG.st.magnet;
+  let w = 0;
+  for (const o of orbs) {
+    o.age += dt;
+    const dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz) || 0.001;
+    if (!o.pull && active && d < mr) o.pull = true;
+    if (o.pull) {
+      o.sp = Math.min(40, o.sp + 70 * dt);
+      o.x += dx / d * Math.min(d, o.sp * dt); o.z += dz / d * Math.min(d, o.sp * dt);
+      if (d < 1.3) { gainXp(o.v); audio.xp(); continue; }
+    } else {
+      const k = Math.exp(-4 * dt);
+      o.vx *= k; o.vz *= k;
+      o.x += o.vx * dt; o.z += o.vz * dt;
+    }
+    orbs[w++] = o;
+  }
+  orbs.length = w;
+}
+
+// ============================================================
+// Bullet Rogue: pickups and equipment
+// ============================================================
+function dropBoost(x, z, type) {
+  type = type || ['reload', 'damage', 'engine', 'repair'][Math.floor(Math.random() * 4)];
+  const mesh = shadowed(new THREE.Mesh(boxGeo, boostMat[type]));
+  mesh.scale.setScalar(type === 'crate' || type === 'cache' ? 1.9 : 1.3);
+  mesh.position.set(x, 1.5, z);
+  scene.add(mesh);
+  RG.pickups.push({ type, x, z, mesh, age: 0, dead: false });
+}
+function updateRoguePickups(dt) {
+  for (const k of RG.pickups) {
+    k.age += dt;
+    k.mesh.rotation.y += dt * 2.2;
+    k.mesh.rotation.x = 0.4;
+    k.mesh.position.y = 1.5 + Math.sin(k.age * 3) * 0.25;
+    if (G.state === 'play' && Math.hypot(player.x - k.x, player.z - k.z) < 2.7) collectBoost(k);
+  }
+  RG.pickups = RG.pickups.filter((k) => !k.dead);
+}
+function collectBoost(k) {
+  k.dead = true;
+  scene.remove(k.mesh);
+  flash(k.x, 1.5, k.z, 2.4, BOOSTS[k.type].color, 0.25);
+  audio.pickup();
+  if (k.type === 'crate' || k.type === 'cache') {
+    const newSlot = k.type === 'crate' && RG.slots < MAX_SLOTS;
+    if (newSlot) RG.slots++;
+    openLevelUp('crate', newSlot);
+    return;
+  }
+  if (k.type === 'repair') {
+    if (RG.hearts < RG.st.maxHearts) { RG.hearts++; popup('+1 ♥', k.x, 3, k.z, 'time'); }
+    else { gainXp(10); popup('+10 XP', k.x, 3, k.z, 'time'); }
+    return;
+  }
+  const id = BOOSTS[k.type].skill;
+  RG.skills[id]++;
+  rogueStats();
+  popup(`${SKILLS[id].name.toUpperCase()} +1`, k.x, 3, k.z, '', SKILLS[id].fx(RG.skills[id]));
+}
+
+function updateEquipment(dt, active) {
+  const p = player, st = RG.st;
+  if (st.armorMax && RG.armor < st.armorMax && active) {
+    RG.armorT -= dt;
+    if (RG.armorT <= 0) { RG.armor++; RG.armorT = st.armorRecharge; audio.shield(); }
+  }
+  shieldMesh.visible = RG.armor > 0 && G.state !== 'over';
+  if (shieldMesh.visible) {
+    shieldMesh.position.set(p.x, 1.2, p.z);
+    shieldMesh.material.opacity = 0.14 + Math.sin(G.stateTime * 4) * 0.05 + (RG.armor > 1 ? 0.06 : 0);
+  }
+  RG.droneA += dt * 2.8;
+  for (let i = 0; i < droneMeshes.length; i++) {
+    const m = droneMeshes[i];
+    m.visible = i < st.drones && G.state !== 'over';
+    if (!m.visible) continue;
+    const a = RG.droneA + i * TAU / st.drones;
+    m.position.set(p.x + Math.sin(a) * 3.3, 1.5, p.z + Math.cos(a) * 3.3);
+    m.rotation.y += dt * 6;
+  }
+  if (st.drones && active) {
+    RG.droneTick -= dt;
+    if (RG.droneTick <= 0) {
+      RG.droneTick = 0.25;
+      for (let i = 0; i < st.drones; i++) {
+        const d = droneMeshes[i].position;
+        for (const e of RG.enemies) if (e.alive && Math.hypot(e.x - d.x, e.z - d.z) < e.r + 1) damageEnemy(e, st.damage * 0.7, false, d.x, d.z);
+      }
+    }
+  }
+  if (st.pulseEvery && active) {
+    RG.pulseT -= dt;
+    if (RG.pulseT <= 0) { RG.pulseT = st.pulseEvery; emitPulse(); }
+  }
+  if (st.regen && active && RG.hearts < st.maxHearts) {
+    RG.regenT += dt;
+    if (RG.regenT >= st.regen) { RG.regenT = 0; RG.hearts++; popup('+1 ♥', p.x, 3, p.z, 'time'); audio.shield(); }
+  }
+}
+function emitPulse() {
+  const p = player, st = RG.st, R = st.pulseR;
+  clearBulletsNear(p.x, p.z, R);
+  for (const e of RG.enemies) {
+    if (!e.alive) continue;
+    const dx = e.x - p.x, dz = e.z - p.z, d = Math.hypot(dx, dz) || 0.001;
+    if (d > R + e.r) continue;
+    damageEnemy(e, st.damage * 2, false, e.x, e.z);
+    // Movers get shoved back by the blast.
+    if (e.alive && e.def.speed && e.kind !== 'boss') {
+      const k = 1 + 3 * (1 - d / (R + e.r));
+      e.x += dx / d * k; e.z += dz / d * k;
+      collideWalls(e, e.r);
+    }
+  }
+  RG.pulseAnim = 0;
+  RG.pulseR = R;
+  flash(p.x, 1.4, p.z, 3, '#b4c4ff', 0.3);
+  addShake(0.3);
+  audio.pulse();
+  const slot = rui.slots.children[RG.equip.findIndex((e) => e.id === 'pulse')];
+  if (slot) restartAnim(slot, 'fired');
+}
+function openExit(why = '') {
+  if (RG.exitOpen) return;
+  RG.exitOpen = true;
+  gateLocked.visible = false;
+  gateOpen.visible = true;
+  RG.inUplink = false;
+  if (RG.uplink) {
+    const u = RG.uplink;
+    u.charge = 1;
+    flash(u.x, 2.5, u.z, 7, '#6cf0a0', 0.5);
+    burst(u.x, 2, u.z, ['#6cf0a0', '#56e8ff', '#ffffff'], 18, 10, 0.35);
+  }
+  for (const o of orbs) o.pull = true;   // sweep up every orb left on the map, so holding the zone never wastes experience
+  RG.exitFlow = mazeDist(RG.maze, RG.exitCell);
+  exitPad.material.color.set('#6cf0a0');
+  gateField.material.color.set('#6cf0a0');
+  banner('EXIT OPEN', why === 'clear' ? 'MAZE CLEARED OUT \u00b7 HEAD FOR THE GATE' : 'HEAD FOR THE GATE', 1.6);
+  audio.clear();
+}
+function addCharge(v) {
+  const u = RG.uplink;
+  if (!u || RG.exitOpen) return;
+  u.charge = Math.min(1, u.charge + v);
+  if (u.charge >= 1) openExit();
+}
+// Holding the uplink draws attackers from a couple of cells away.
+function spawnRaid() {
+  const m = RG.maze, cells = [];
+  for (let i = 0; i < m.n * m.n; i++) if (RG.flow[i] === 2 || RG.flow[i] === 3) cells.push(i);
+  if (!cells.length) return;
+  const c = cellCenter(m, cells[Math.floor(Math.random() * cells.length)]);
+  RG.raids++;
+  const kinds = RG.depth >= 3 ? ['crawler', 'crawler', 'crawler'] : ['crawler', 'crawler'];
+  if (RG.depth >= 3 && RG.raids % 2 === 0) kinds.push('gunner');
+  for (const kind of kinds) {
+    if (RG.enemies.length >= ENEMY_CAP) break;
+    const x = c.x + rand(-3, 3), z = c.z + rand(-3, 3);
+    if (!clearOfWalls(x, z, 1.6)) continue;
+    spawnFoe(kind, x, z).aggro = true;
+    flash(x, 1, z, 1.6, '#56e8ff', 0.25);
+  }
+}
+function updateUplink(dt, active) {
+  const u = RG.uplink;
+  if (!u || !uplink.visible) return;
+  RG.inUplink = active && !RG.exitOpen && Math.hypot(player.x - u.x, player.z - u.z) < UPLINK_R;
+  if (RG.inUplink) {
+    addCharge(dt / u.need);
+    RG.waveT -= dt;
+    if (RG.waveT <= 0) { RG.waveT = Math.max(2.6, 4.4 - 0.15 * RG.depth); spawnRaid(); }
+    if (Math.random() < 0.5) burst(u.x + rand(-3, 3), 0.3, u.z + rand(-3, 3), '#56e8ff', 1, 1, 0.3, { smoke: true, grow: -0.2 });
+    const tick = Math.floor(u.charge * 10);
+    if (tick > u.tick) { u.tick = tick; audio.tone('square', 440 + tick * 70, 440 + tick * 70, 0.07, 0.06); }
+  }
+  upLabel.visible = !RG.exitOpen && !RG.inUplink;
+  const c = RG.exitOpen ? 1 : u.charge, col = RG.exitOpen ? '#6cf0a0' : '#56e8ff';
+  if (u.col !== col) { u.col = col; for (const mm of [upRing, upFill, upGem, upBeam]) mm.material.color.set(col); }
+  upGem.rotation.y += dt * (1.5 + c * 8);
+  upGem.position.y = 3.2 + Math.sin(G.stateTime * 3) * 0.2;
+  const h = 1 + c * 26;
+  upBeam.scale.set(1, h, 1);
+  upBeam.position.y = 3.2 + h / 2;
+  upFill.scale.setScalar(Math.max(0.01, UPLINK_R * c));
+  if (!RG.exitOpen) {
+    upRing.material.opacity = RG.inUplink ? 0.6 + Math.sin(G.stateTime * 10) * 0.3 : 0.75;
+    return;
+  }
+  // Job done (charged, or nobody left to fight): the uplink collapses and fades away.
+  u.fade = Math.max(0, (u.fade ?? 1) - dt / 1.2);
+  const f = u.fade, e = f * f * (3 - 2 * f);
+  uplink.scale.setScalar(Math.max(0.001, e));
+  upRing.material.opacity = 0.75 * f;
+  upFill.material.opacity = 0.25 * f;
+  upBeam.material.opacity = 0.35 * f;
+  upGem.material.opacity = f;
+  if (f <= 0) uplink.visible = false;
+}
+function updateGate() {
+  gateField.material.opacity = (RG.exitOpen ? 0.55 : 0.32) + Math.sin(G.stateTime * 6) * 0.12;
+  exitPad.material.opacity = RG.exitOpen ? 0.7 + Math.sin(G.stateTime * 6) * 0.25 : 0.45;
+  if (!RG.exitOpen) {
+    // No enemies left at all: nothing to hold the gate shut.
+    if (G.state === 'play' && !RG.enemies.length && RG.mazeTime > 1) { openExit('clear'); return; }
+    const near = G.state === 'play' && Math.hypot(player.x - RG.exitX, player.z - RG.exitZ) < 4.5;
+    if (near && RG.mazeTime - RG.lockedAt > 3) {
+      RG.lockedAt = RG.mazeTime;
+      popup('GATE LOCKED', player.x, 4, player.z, 'bad', RG.boss ? 'DESTROY THE FORTRESS' : 'CHARGE THE UPLINK OR CLEAR THE MAZE');
+    }
+    return;
+  }
+  if (Math.random() < 0.35) burst(RG.exitX + rand(-3, 3), 0.3, RG.exitZ + rand(-3, 3), '#6cf0a0', 1, 1, 0.3, { smoke: true, grow: -0.2 });
+  if (G.state === 'play' && Math.hypot(player.x - RG.exitX, player.z - RG.exitZ) < 3.4) mazeClear();
+}
+function mazeClear() {
+  setState('clear');
+  for (const b of ebs) b.dead = true;
+  const healed = RG.hearts < RG.st.maxHearts;
+  if (healed) RG.hearts++;
+  RG.rerolls = Math.min(3, RG.rerolls + 1);
+  // Beating par pays experience, so pushing on is worth it.
+  const par = 50 + 12 * RG.depth;
+  const fast = Math.max(0, Math.round((par - RG.mazeTime) * 0.4 * (1 + 0.25 * (RG.depth - 1))));
+  if (fast) gainXp(fast);
+  const parts = [healed ? '+1 ♥ REPAIRED' : `${RG.kills} KILLS`];
+  if (fast) parts.push(`FAST CLEAR +${fast} XP`);
+  banner('MAZE CLEAR', parts.join(' · '), 1.6);
+  audio.clear();
+}
+function rogueDeath() {
+  setState('over');
+  const p = player;
+  burst(p.x, 1.2, p.z, ['#f2c53d', '#c99a22', '#23251c'], 34, 18, 0.6);
+  flash(p.x, 1.4, p.z, 8, '#ffb347', 0.5);
+  scorch(p.x, p.z, 4);
+  p.mesh.visible = false;
+  addShake(1.3);
+  audio.boom(1.6);
+  audio.over();
+  banner('DESTROYED', `MAZE ${RG.depth} · LEVEL ${RG.level}`, 1.5);
+  ui.touch.hidden = true;
+  releaseAllPointers();
+}
+
+// ============================================================
+// Bullet Rogue: level-up cards
+// ============================================================
+let luChoices = [], luKind = 'level', luOpenAt = 0, luNewSlot = false;
+const skillMax = (id) => SKILLS[id].max ?? Infinity;
+function takeWeighted(list, also) {
+  let total = 0;
+  for (const c of list) total += c.w;
+  let r = Math.random() * total, pickI = 0;
+  for (let i = 0; i < list.length; i++) { r -= list[i].w; if (r <= 0) { pickI = i; break; } }
+  const c = list.splice(pickI, 1)[0];
+  if (also) also.splice(also.indexOf(c), 1);
+  return c;
+}
+function equipOptions() {
+  const out = [];
+  for (const id of Object.keys(EQUIP)) {
+    const own = RG.equip.find((e) => e.id === id);
+    if (own) { if (own.lvl < 3) out.push({ kind: 'equip', id, w: 8 }); }
+    else if (RG.equip.length < RG.slots) out.push({ kind: 'equip', id, w: 5 });
+  }
+  return out;
+}
+function rollChoices(kind) {
+  const skills = Object.keys(SKILLS).filter((id) => RG.skills[id] < skillMax(id)).map((id) => ({ kind: 'skill', id, w: 10 }));
+  const gear = equipOptions(), out = [];
+  if (kind === 'crate') {
+    while (out.length < 3 && gear.length) out.push(takeWeighted(gear));
+    while (out.length < 3 && skills.length) out.push(takeWeighted(skills));
+  } else {
+    const pool = [...skills, ...gear];
+    // Gear shows up on the first level-up and every fourth after, so the slots matter early.
+    if ((RG.level === 2 || RG.level % 4 === 0) && gear.length) out.push(takeWeighted(gear, pool));
+    while (out.length < 3 && pool.length) out.push(takeWeighted(pool));
+  }
+  while (out.length < 3) out.push(out.length % 2 ? { kind: 'repair' } : { kind: 'cache' });
+  return out;
+}
+// What a card says: the step it gives, and what changes from now to after.
+function cardInfo(c) {
+  if (c.kind === 'skill') {
+    const s = SKILLS[c.id], r = RG.skills[c.id] + 1, max = skillMax(c.id);
+    return {
+      icon: c.id, color: s.color, tag: r === 1 ? 'NEW SKILL' : `SKILL · RANK ${r}`, name: s.name, desc: s.desc,
+      change: `${r > 1 ? s.fx(r - 1) : 'none'} → ${s.fx(r)}`, rank: r, max: Number.isFinite(max) ? max : 0,
+    };
+  }
+  if (c.kind === 'equip') {
+    const q = EQUIP[c.id], own = RG.equip.find((e) => e.id === c.id), lvl = own ? own.lvl + 1 : 1;
+    return {
+      icon: c.id, color: q.color, tag: own ? `GEAR UPGRADE · LV ${lvl}${lvl === 3 ? ' MAX' : ''}` : 'NEW GEAR', name: q.name, desc: q.desc[lvl - 1],
+      change: own ? `now: ${q.desc[lvl - 2]}` : `takes a gear slot (${RG.equip.length + 1} of ${RG.slots})`, rank: lvl, max: 3,
+    };
+  }
+  if (c.kind === 'repair') return { icon: 'regen', color: '#6cf0a0', tag: 'SUPPLIES', name: 'Repair Kit', desc: 'Repair 2 hearts', change: '', rank: 0, max: 0 };
+  return { icon: 'salvage', color: '#ffe14f', tag: 'SUPPLIES', name: 'Salvage Cache', desc: 'Half a level of experience', change: '', rank: 0, max: 0 };
+}
+function renderCards() {
+  const box = $('cards');
+  box.textContent = '';
+  luChoices.forEach((c, i) => {
+    const info = cardInfo(c), b = document.createElement('button');
+    b.className = 'upg';
+    b.dataset.i = i;
+    const add = (cls, text) => { const el = document.createElement('span'); el.className = cls; el.textContent = text; b.appendChild(el); return el; };
+    const ico = add('ico', '');
+    ico.style.background = info.color;
+    ico.innerHTML = iconSvg(info.icon);
+    add('tag', `${i + 1} · ${info.tag}`);
+    add('nm', info.name);
+    add('ds', info.desc);
+    if (info.change) add('chg', info.change);
+    if (info.max && info.max <= 6) add('pips', '■'.repeat(info.rank) + '□'.repeat(info.max - info.rank));
+    box.appendChild(b);
+  });
+  const rr = $('btnReroll');
+  rr.hidden = RG.rerolls <= 0;
+  rr.textContent = `REROLL · ${RG.rerolls} LEFT`;
+}
+function openLevelUp(kind, newSlot = false) {
+  luKind = kind;
+  luNewSlot = newSlot;
+  luChoices = rollChoices(kind);
+  $('luTitle').textContent = kind === 'crate' ? 'GEAR CRATE' : `LEVEL ${RG.level - RG.pending + 1}`;
+  $('luSub').textContent = kind === 'crate'
+    ? (newSlot ? `NEW GEAR SLOT · ${RG.equip.length} OF ${RG.slots} USED` : `CHOOSE YOUR GEAR · ${RG.equip.length} OF ${RG.slots} SLOTS USED`)
+    : `CHOOSE ONE · GEAR SLOTS ${RG.equip.length} OF ${RG.slots}`;
+  renderCards();
+  renderStrip($('luBuild'), false);
+  hideBanner();
+  bannerTimer = 0;
+  ui.levelup.hidden = false;
+  G.state = 'levelup';
+  luOpenAt = performance.now();
+  releaseAllPointers();
+  audio.levelup();
+}
+function rerollCards() {
+  if (G.state !== 'levelup' || RG.rerolls <= 0 || performance.now() - luOpenAt < 300) return;
+  RG.rerolls--;
+  luChoices = rollChoices(luKind);
+  renderCards();
+  audio.pickup();
+}
+function chooseUpgrade(i) {
+  if (G.state !== 'levelup' || performance.now() - luOpenAt < 450) return;   // ignore taps carried over from play
+  const c = luChoices[i];
+  if (!c) return;
+  if (c.kind === 'skill') { RG.skills[c.id]++; if (c.id === 'plating') RG.hearts++; }
+  else if (c.kind === 'equip') {
+    const own = RG.equip.find((e) => e.id === c.id);
+    if (own) own.lvl++; else RG.equip.push({ id: c.id, lvl: 1 });
+  } else if (c.kind === 'repair') RG.hearts += 2;
+  else RG.xp += RG.xpNext * 0.5;
+  rogueStats();
+  RG.hearts = Math.min(RG.hearts, RG.st.maxHearts);
+  if (c.id === 'armor') RG.armor = RG.st.armorMax;
+  if (c.id === 'pulse') RG.pulseT = Math.min(RG.pulseT, RG.st.pulseEvery);
+  const info = cardInfo(c);
+  popup(info.name.toUpperCase(), player.x, 4, player.z, 'big');
+  ui.levelup.hidden = true;
+  G.state = 'play';
+  input.dash = false;
+  if (luKind === 'level') RG.pending--;
+  flash(player.x, 1.4, player.z, 4, info.color, 0.35);
+}
+$('cards').addEventListener('click', (e) => {
+  const b = e.target.closest('button.upg');
+  if (b) chooseUpgrade(+b.dataset.i);
+});
+$('btnReroll').addEventListener('click', rerollCards);
+
+// Everything the tank carries, gear first.
+function buildRows(skillsOnly = false) {
+  const rows = [];
+  if (!skillsOnly) {
+    for (const e of RG.equip) {
+      const q = EQUIP[e.id];
+      rows.push({ id: e.id, color: q.color, name: q.name, rank: `LV ${e.lvl}${e.lvl === 3 ? ' MAX' : ''}`, short: `L${e.lvl}`, fx: q.desc[e.lvl - 1] });
+    }
+  }
+  for (const id of Object.keys(SKILLS)) {
+    const r = RG.skills[id];
+    if (r) rows.push({ id, color: SKILLS[id].color, name: SKILLS[id].name, rank: `RANK ${r}`, short: String(r), fx: SKILLS[id].fx(r) });
+  }
+  return rows;
+}
+function renderStrip(el, skillsOnly) {
+  el.textContent = '';
+  for (const r of buildRows(skillsOnly)) {
+    const chip = document.createElement('span'), ico = document.createElement('span'), t = document.createElement('b');
+    chip.className = 'chip-ico';
+    chip.title = `${r.name} ${r.rank}: ${r.fx}`;
+    ico.className = 'ico';
+    ico.style.background = r.color;
+    ico.innerHTML = iconSvg(r.id);
+    t.textContent = r.short;
+    chip.append(ico, t);
+    el.appendChild(chip);
+  }
+}
+// Pause screen: the full loadout with what each piece is doing right now.
+function renderLoadout() {
+  const st = RG.st;
+  $('loStats').textContent = `${st.fireRate.toFixed(1)} SHOTS/S · ${Math.round(st.damage)} DAMAGE · ${st.shots} PER VOLLEY · ${Math.round(st.crit * 100)}% CRIT · SPEED ${st.moveSpeed.toFixed(1)}`;
+  const el = $('loadout'), rows = buildRows();
+  el.textContent = '';
+  if (!rows.length) {
+    const p = document.createElement('p');
+    p.className = 'lo-empty';
+    p.textContent = 'No upgrades yet. Collect experience orbs to level up.';
+    el.appendChild(p);
+    return;
+  }
+  for (const r of rows) {
+    const row = document.createElement('div');
+    row.className = 'lo-row';
+    const add = (cls, text) => { const s2 = document.createElement('span'); s2.className = cls; s2.textContent = text; row.appendChild(s2); return s2; };
+    const ico = add('ico', '');
+    ico.style.background = r.color;
+    ico.innerHTML = iconSvg(r.id);
+    add('nm', r.name);
+    add('rk', r.rank);
+    add('fx', r.fx);
+    el.appendChild(row);
+  }
+}
+
+// ============================================================
+// Bullet Rogue: frame
+// ============================================================
+function updateRogue(dt) {
+  if (G.state === 'countdown' && G.stateTime >= 1.5) {
+    setState('play');
+    const tip = isTouch ? 'TURRET FIRES ITSELF · TAP A 2ND FINGER TO DASH' : 'TURRET FIRES ITSELF · SPACE TO DASH';
+    banner('GO!', RG.depth === 1 ? tip : '', RG.depth === 1 ? 2.4 : 0.6);
+    audio.beep(true);
+  }
+  const active = G.state === 'play';
+  if (active) {
+    RG.time += dt;
+    RG.mazeTime += dt;
+    if (RG.streakT > 0 && (RG.streakT -= dt) <= 0) RG.streak = 0;
+  }
+  updateRoguePlayer(dt, active);
+  const c = cellAt(player.x, player.z);
+  if (c !== RG.flowCell) { RG.flowCell = c; RG.flow = mazeDist(RG.maze, c); }
+  updateEnemies(dt, active);
+  updatePBullets(dt);
+  updateEBullets(dt, active);
+  updateOrbs(dt, active);
+  updateRoguePickups(dt);
+  updateEquipment(dt, active);
+  updateUplink(dt, active);
+  updateGate();
+  renderRogue(dt);
+  updateRogueCamera(dt);
+  updatePlayerBar(dt);
+  updateRogueGuide();
+  updateRogueHud();
+  const on = G.state === 'play' || G.state === 'countdown' || G.state === 'clear';
+  audio.engine(player.speed, on, active ? Math.min(1, Math.hypot(input.mx, input.my)) : 0);
+  audio.updateMusic(on, Math.min(118 + RG.depth * 4, 168) + (RG.boss ? 12 : 0));
+
+  if (G.state === 'play') {
+    while (RG.xp >= RG.xpNext) {
+      RG.xp -= RG.xpNext;
+      RG.level++;
+      RG.xpNext = xpNeed(RG.level);
+      RG.pending++;
+    }
+    if (RG.pending > 0) openLevelUp('level');
+  }
+  if (G.state === 'clear' && G.stateTime > 1.6) buildMaze(RG.depth + 1);
+  if (G.state === 'over' && G.stateTime > 1.6 && ui.over.hidden) showRogueOver();
+}
+
+function renderRogue(dt) {
+  let k = 0;
+  for (const b of ebs) {
+    if (b.dead || k >= EB_MAX) continue;
+    dummy.position.set(b.x, 1, b.z);
+    dummy.rotation.set(0, 0, 0);
+    dummy.scale.setScalar(b.r * 1.35 * (1 + Math.sin(b.age * 18) * 0.1));   // drawn bigger than the hitbox
+    dummy.updateMatrix();
+    ebCore.setMatrixAt(k, dummy.matrix);
+    ebCore.setColorAt(k, b.core);
+    // A coloured disc on the floor marks where each shot really is.
+    dummy.position.y = 0.06;
+    dummy.rotation.set(-Math.PI / 2, 0, 0);
+    dummy.scale.setScalar(b.r * 2.2);
+    dummy.updateMatrix();
+    ebGlow.setMatrixAt(k, dummy.matrix);
+    ebGlow.setColorAt(k, b.glow);
+    k++;
+  }
+  ebCore.count = ebGlow.count = k;
+  for (const m of [ebCore, ebGlow]) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }
+
+  k = 0;
+  for (const b of pbs) {
+    if (b.dead) continue;
+    dummy.position.set(b.x, 1.4, b.z);
+    dummy.rotation.set(0, Math.atan2(b.vx, b.vz), 0);
+    const s = b.crit ? 1.4 : 1;
+    dummy.scale.set(0.3 * s, 0.3 * s, 1 * s);
+    dummy.updateMatrix();
+    pbMesh.setMatrixAt(k, dummy.matrix);
+    pbMesh.setColorAt(k, b.crit ? PB_COL.crit : PB_COL.normal);
+    k++;
+  }
+  pbMesh.count = k;
+  pbMesh.instanceMatrix.needsUpdate = true;
+  pbMesh.instanceColor.needsUpdate = true;
+
+  k = 0;
+  for (const o of orbs) {
+    dummy.position.set(o.x, 0.8 + Math.sin(o.age * 5 + o.x) * 0.15, o.z);
+    dummy.rotation.set(0, o.age * 3, 0);
+    dummy.scale.setScalar(o.v >= 25 ? 1.7 : o.v >= 5 ? 1.3 : 1);
+    dummy.updateMatrix();
+    orbMesh.setMatrixAt(k, dummy.matrix);
+    orbMesh.setColorAt(k, ORB_COL[o.v]);
+    k++;
+  }
+  orbMesh.count = k;
+  orbMesh.instanceMatrix.needsUpdate = true;
+  orbMesh.instanceColor.needsUpdate = true;
+
+  for (const e of RG.enemies) {
+    if (!e.bar) continue;
+    const ratio = clamp(e.hp / e.maxHp, 0, 1);
+    e.bar.visible = e.kind === 'core' || e.elite || ratio < 1;
+    if (!e.bar.visible) continue;
+    e.bar.position.set(e.x, e.def.bar || 3.4, e.z);
+    e.bar.quaternion.copy(camera.quaternion);
+    const { fg, w } = e.bar.userData;
+    fg.scale.x = Math.max(0.001, w * ratio);
+    fg.position.x = -w * (1 - ratio) / 2;
+  }
+
+  if (RG.pulseAnim < 1) {
+    RG.pulseAnim = Math.min(1, RG.pulseAnim + dt / 0.5);
+    const t = RG.pulseAnim, grow = Math.max(0.01, RG.pulseR * (1 - Math.pow(1 - t, 3)));
+    pulseRing.visible = pulseDisc.visible = t < 1;
+    for (const m of [pulseRing, pulseDisc]) { m.position.x = player.x; m.position.z = player.z; m.scale.setScalar(grow); }
+    pulseRing.material.opacity = 0.95 * (1 - t);
+    pulseDisc.material.opacity = 0.32 * (1 - t) * (1 - t);
+  }
+}
+
+function updatePlayerBar(dt) {
+  if (G.mode !== 'rogue' || !(G.state === 'play' || G.state === 'countdown' || G.state === 'clear')) { pbar.visible = false; return; }
+  const st = RG.st, max = st.maxHearts, n = max + st.armorMax;
+  const sig = `${RG.hearts}/${max}/${RG.armor}/${st.armorMax}`;
+  if (sig !== pbarSig) {
+    if (pbarSig) pbarT = PBAR_SHOW;   // a real change, not the first look at a new maze
+    pbarSig = sig;
+    const gap = 0.12, segW = Math.min(0.8, (5.6 - gap * (n - 1)) / n), total = n * segW + (n - 1) * gap;
+    pbarBg.scale.set(total + 0.3, 0.7, 1);
+    pbarSegs.forEach((m, i) => {
+      m.visible = i < n;
+      if (!m.visible) return;
+      m.scale.set(segW, 0.44, 1);
+      m.position.x = -total / 2 + segW / 2 + i * (segW + gap);
+      const armorSeg = i >= max, on = armorSeg ? i - max < RG.armor : i < RG.hearts;
+      m.material.color.set(armorSeg ? (on ? '#56e8ff' : '#2a3a48') : (on ? '#ff4b5c' : '#3a3f55'));
+    });
+  }
+  pbarT = Math.max(0, pbarT - dt);
+  pbar.visible = pbarT > 0;
+  if (!pbar.visible) return;
+  const op = Math.min(1, pbarT / 0.6), age = PBAR_SHOW - pbarT;
+  pbarBg.material.opacity = 0.9 * op;
+  for (const m of pbarSegs) m.material.opacity = op;
+  pbar.position.set(player.x, 3.8, player.z);
+  pbar.quaternion.copy(camera.quaternion);
+  // Pops in, and throbs when one hit from the end.
+  pbar.scale.setScalar((age < 0.15 ? 1.25 - age / 0.15 * 0.25 : 1) * (RG.hearts === 1 ? 1 + Math.sin(G.stateTime * 10) * 0.1 : 1));
+}
+
+// High, north-up camera so shots from every side stay in view.
+function updateRogueCamera(dt) {
+  const k = clamp((1.2 - camera.aspect) / 0.65, 0, 1);
+  const height = 25 + k * 11, back = 13 + k * 2;
+  desired.set(player.x, height, player.z - back);
+  if (snapCam) { camPos.copy(desired); snapCam = false; }
+  else camPos.lerp(desired, 1 - Math.exp(-dt * 6));
+  camera.position.copy(camPos);
+  if (G.shake > 0) {
+    const s = G.shake * 0.6;
+    camera.position.x += (Math.random() - 0.5) * s;
+    camera.position.y += (Math.random() - 0.5) * s;
+    camera.position.z += (Math.random() - 0.5) * s;
+    G.shake = Math.max(0, G.shake - dt * 2.8);
+  }
+  camera.lookAt(camPos.x, 0, camPos.z + back + 1.5);
+  if (Math.abs(camera.fov - baseFov) > 0.05) { camera.fov += (baseFov - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
+}
+
+// Ground arrow along the maze: to the uplink until it's charged, then to the exit.
+function updateRogueGuide() {
+  aimLine.visible = false;
+  let field = null, target = null, color = '#6cf0a0';
+  if (G.state === 'play') {
+    if (RG.exitOpen) { field = RG.exitFlow; target = { x: RG.exitX, z: RG.exitZ }; }
+    else if (RG.uplink && !RG.inUplink) { field = RG.uplink.flow; target = RG.uplink; color = '#56e8ff'; }
+  }
+  guide.visible = !!field;
+  if (!field) return;
+  const next = stepToward(field, RG.flowCell);
+  const t = next < 0 ? target : cellCenter(RG.maze, next);
+  if (Math.hypot(t.x - player.x, t.z - player.z) < 2) { guide.visible = false; return; }
+  const ang = Math.atan2(t.x - player.x, t.z - player.z);
+  guide.material.color.set(color);
+  guide.position.set(player.x + Math.sin(ang) * 4.4, 0.12, player.z + Math.cos(ang) * 4.4);
+  guide.rotation.y = ang;
+  guide.scale.setScalar(1 + Math.sin(G.stateTime * 8) * 0.12);
+}
+
+// ============================================================
+// Bullet Rogue: HUD and results
+// ============================================================
+const rui = {
+  hearts: $('heartsFull'), heartsEmpty: $('heartsEmpty'), armor: $('armorPips'), level: $('rLevel'), xp: $('rXp'),
+  depth: $('rDepth'), goal: $('rGoal'), kills: $('rKills'), streak: $('rStreak'), streakX: $('rStreakX'), slots: $('slots'), skills: $('skillRow'),
+  bar: $('bossBar'), barFill: $('bossFill'), dash: $('dashBtn'),
+};
+function updateRogueHud() {
+  if (ui.hud.hidden) return;
+  const st = RG.st, u = RG.uplink;
+  setText(rui.hearts, 'rh', '♥'.repeat(Math.max(0, RG.hearts)));
+  const lowHp = RG.hearts === 1 && G.state === 'play';
+  if (hudCache.lowHp !== lowHp) { hudCache.lowHp = lowHp; ui.hurt.classList.toggle('low', lowHp); }
+  setText(rui.heartsEmpty, 're', '♥'.repeat(Math.max(0, st.maxHearts - RG.hearts)));
+  setText(rui.armor, 'ra', '◆'.repeat(RG.armor));
+  setText(rui.level, 'rl', String(RG.level));
+  rui.xp.style.transform = `scaleX(${clamp(RG.xp / RG.xpNext, 0, 1).toFixed(3)})`;
+  setText(rui.depth, 'rd', `MAZE ${RG.depth}`);
+  const pct = u ? Math.floor(u.charge * 100) : 0;
+  const goal = RG.exitOpen ? 'EXIT OPEN' : RG.boss ? 'DESTROY THE FORTRESS' : `${RG.inUplink ? 'CHARGING' : 'UPLINK'} ${pct}%`;
+  setText(rui.goal, 'rg', goal);
+  if (hudCache.rgOpen !== RG.exitOpen) { hudCache.rgOpen = RG.exitOpen; rui.goal.classList.toggle('open', RG.exitOpen); }
+  setText(rui.kills, 'rk', String(RG.kills));
+  const streaking = RG.streak >= 3;
+  if (streaking) {
+    setText(rui.streak, 'rs', `STREAK ${RG.streak}`);
+    setText(rui.streakX, 'rsx', `XP ×${streakMult().toFixed(2)}`);
+  }
+  if (rui.streak.hidden === streaking) rui.streak.hidden = rui.streakX.hidden = !streaking;
+
+  // Goal bar: the boss's armour, or the uplink's charge.
+  const boss = RG.boss && RG.boss.alive ? RG.boss : null;
+  const showBar = !!boss || (!!u && !RG.exitOpen);
+  if (rui.bar.hidden === showBar) rui.bar.hidden = !showBar;
+  if (showBar) {
+    rui.barFill.style.transform = `scaleX(${clamp(boss ? boss.hp / boss.maxHp : u.charge, 0, 1).toFixed(3)})`;
+    const col = boss ? 'var(--violet)' : 'var(--steel-2)';
+    if (hudCache.barCol !== col) { hudCache.barCol = col; rui.barFill.style.background = col; }
+  }
+
+  const sig = RG.slots + '|' + RG.equip.map((e) => e.id + e.lvl).join(',');
+  if (sig !== RG.slotSig) {
+    RG.slotSig = sig;
+    rui.slots.textContent = '';
+    for (let i = 0; i < RG.slots; i++) {
+      const e = RG.equip[i], d = document.createElement('div');
+      d.className = 'slot' + (e ? '' : ' empty');
+      if (e) {
+        const q = EQUIP[e.id];
+        d.style.background = q.color;
+        d.title = `${q.name} LV ${e.lvl}: ${q.desc[e.lvl - 1]}`;
+        d.innerHTML = iconSvg(e.id);
+        const pips = document.createElement('i');
+        pips.textContent = '•'.repeat(e.lvl);
+        d.appendChild(pips);
+      }
+      rui.slots.appendChild(d);
+    }
+  }
+  RG.equip.forEach((e, i) => {
+    let cd = -1;
+    if (e.id === 'pulse') cd = 1 - clamp(RG.pulseT / st.pulseEvery, 0, 1);
+    else if (e.id === 'armor') cd = RG.armor >= st.armorMax ? 1 : 1 - clamp(RG.armorT / st.armorRecharge, 0, 1);
+    const el = rui.slots.children[i];
+    if (cd < 0 || !el) return;
+    const v = cd.toFixed(2);
+    if (el.dataset.cd !== v) { el.dataset.cd = v; el.style.setProperty('--cd', v); el.classList.toggle('charging', v !== '1.00'); }
+  });
+  const skillSig = Object.values(RG.skills).join(',');
+  if (skillSig !== RG.stripSig) { RG.stripSig = skillSig; renderStrip(rui.skills, true); }
+
+  const cd = (1 - clamp(RG.dashCd / st.dashCd, 0, 1)).toFixed(2);
+  if (hudCache.dash !== cd) { hudCache.dash = cd; rui.dash.style.setProperty('--cd', cd); rui.dash.classList.toggle('ready', cd === '1.00'); }
+  drawMazeMap();
+}
+
+// North-up map of the whole maze, matching the camera.
+function drawMazeMap() {
+  const size = radar.width, m = RG.maze, span = m.n * CELL + 6, s = (size - 6) / span, ctx = rctx;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = 'rgba(12, 14, 28, 0.72)';
+  ctx.fillRect(0, 0, size, size);
+  ctx.setTransform(-s, 0, 0, -s, size / 2, size / 2);
+  ctx.fillStyle = G.palette.wall;
+  for (const w of walls) ctx.fillRect(w.x0, w.z0, w.x1 - w.x0, w.z1 - w.z0);
+  const u = RG.uplink;
+  if (u && !RG.exitOpen) {
+    ctx.fillStyle = 'rgba(86, 232, 255, 0.25)';
+    ctx.beginPath(); ctx.arc(u.x, u.z, UPLINK_R, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#56e8ff';
+    ctx.beginPath(); ctx.moveTo(u.x, u.z); ctx.arc(u.x, u.z, UPLINK_R, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0.02, u.charge)); ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = RG.exitOpen ? '#6cf0a0' : '#ff3b5c';
+  ctx.globalAlpha = RG.exitOpen ? 0.6 + Math.sin(G.stateTime * 6) * 0.4 : 0.7;
+  ctx.fillRect(RG.exitX - 3, RG.exitZ - 3, 6, 6);
+  ctx.globalAlpha = 1;
+  for (const e of RG.enemies) {
+    if (e.kind === 'core' || e.kind === 'boss') {
+      ctx.fillStyle = e.kind === 'boss' ? '#b86cff' : '#ff3b5c';
+      ctx.beginPath(); ctx.arc(e.x, e.z, e.kind === 'boss' ? 4.5 : 3.2 + Math.sin(G.stateTime * 5) * 0.6, 0, TAU); ctx.fill();
+    } else if (e.dist < 34) {
+      ctx.fillStyle = e.elite ? '#f2c53d' : e.kind === 'sentry' || e.kind === 'spinner' ? '#ffa53a' : '#ff6b8a';
+      ctx.fillRect(e.x - 1.2, e.z - 1.2, 2.4, 2.4);
+    }
+  }
+  for (const k of RG.pickups) {
+    ctx.fillStyle = k.type === 'cache' || k.type === 'crate' ? BOOSTS[k.type].color : '#ffffff';
+    const r = k.type === 'cache' || k.type === 'crate' ? 2.4 : 1.5;
+    ctx.fillRect(k.x - r, k.z - r, r * 2, r * 2);
+  }
+  const p = player, fx = Math.sin(p.a), fz = Math.cos(p.a);
+  ctx.fillStyle = '#f2c53d';
+  ctx.beginPath();
+  ctx.moveTo(p.x + fx * 4, p.z + fz * 4);
+  ctx.lineTo(p.x - fx * 2.5 + fz * 2.6, p.z - fz * 2.5 - fx * 2.6);
+  ctx.lineTo(p.x - fx * 2.5 - fz * 2.6, p.z - fz * 2.5 + fx * 2.6);
+  ctx.closePath(); ctx.fill();
+}
+
+const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function showRogueOver() {
+  const best = store.get('rogueBest', { depth: 0, level: 0 });
+  const isBest = RG.depth > best.depth || (RG.depth === best.depth && RG.level > best.level);
+  if (isBest) store.set('rogueBest', { depth: RG.depth, level: RG.level });
+  const chips = buildRows().map((r) => ({ text: `${r.name} ${r.rank}`, color: r.color }));
+  showOver('DESTROYED', [['MAZE', RG.depth], ['LEVEL', RG.level], ['KILLS', RG.kills], ['TIME', fmtTime(RG.time)], ['BEST STREAK', RG.bestStreak], ['GRAZES', RG.grazes]],
+    isBest ? 'NEW DEEPEST RUN!' : `DEEPEST <b>MAZE ${best.depth}</b>`, isBest, chips);
+}
+
+// ============================================================
 // Camera
 // ============================================================
 let camYaw = 0, snapCam = true, baseFov = 60;
@@ -1955,6 +4227,9 @@ function updateHud() {
   if (hudCache.low !== low) { hudCache.low = low; ui.timer.classList.toggle('low', low); }
   setText(ui.wave, 'wave', String(G.wave));
   setText(ui.left, 'left', String(Math.max(0, G.remaining)));
+  const limit = SHOTS_PER_TARGET * G.waveTargets, overLimit = G.shots > limit;
+  setText(ui.shots, 'shots', `${G.shots}/${limit}`);
+  if (hudCache.shotsOver !== overLimit) { hudCache.shotsOver = overLimit; ui.shotsBox.classList.toggle('over', overLimit); }
   const showCombo = G.comboTimer > 0 && G.combo > 1;
   if (ui.combo.hidden === showCombo) ui.combo.hidden = !showCombo;
   if (showCombo) {
@@ -2014,7 +4289,16 @@ function drawRadar() {
 function update(dt) {
   G.stateTime += dt;
   readInput();
+  if (G.mode === 'rogue') updateRogue(dt);
+  else updateArcade(dt);
+  updateDebris(dt);
+  updateFlashes(dt);
+  updatePopups(dt);
+  if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) hideBanner(); }
+}
 
+function updateArcade(dt) {
+  input.dash = false;
   if (G.state === 'countdown' && G.stateTime >= 1.5) {
     setState('play');
     banner('GO!', '', 0.6);
@@ -2032,15 +4316,11 @@ function update(dt) {
   updateTargets(dt, G.state === 'play' || G.state === 'clear' || G.state === 'title');
   updateShells(dt);
   updatePowerups(dt);
-  updateDebris(dt);
-  updateFlashes(dt);
   updateCamera(dt);
   updateAim();
   updateGuide();
-  updatePopups(dt);
   updateHud();
 
-  if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) hideBanner(); }
   const engineOn = G.state === 'play' || G.state === 'countdown' || G.state === 'clear';
   audio.engine(player.speed, engineOn, G.state === 'play' ? Math.abs(input.throttle) : 0);
   const bpm = 112 + Math.min(G.wave - 1, 14) * 5 + (G.state === 'play' && G.timeLeft < 10 ? 16 : 0);
@@ -2073,7 +4353,7 @@ function frame(now) {
   // Hit-stop: a few frames of slow motion when a barrel goes up.
   let step = dt;
   if (G.hitstop > 0) { G.hitstop -= dt; step *= 0.2; }
-  if (G.state !== 'paused') update(step);
+  if (G.state !== 'paused' && G.state !== 'levelup') update(step);
   renderer.render(scene, camera);
   if (G.state === 'play') adaptQuality(dt);
 }
@@ -2104,7 +4384,7 @@ showTitle();
 $('loading').remove();
 requestAnimationFrame((t) => { last = t; frame(t); });
 // Debug handle for poking at the game from the browser console.
-window.__pytank = { G, player, input, get targets() { return targets; }, startWave };
+window.__pytank = { G, RG, player, input, pbar, uplink, get targets() { return targets; }, get ebs() { return ebs; }, get pbs() { return pbs; }, startWave, buildMaze };
 </script>
 </body>
 </html>

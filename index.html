@@ -22,6 +22,7 @@
     --steel: #6c8cff;      /* enemy tanks, bank shots */
     --mint: #6cf0a0;       /* time bonuses, experience */
     --violet: #b86cff;     /* Bullet Rogue accent, boss */
+    --steel-2: #56e8ff;    /* uplink charge */
     --panel: rgba(12, 14, 28, 0.66);
     --line: rgba(246, 238, 210, 0.18);
     --shade: rgba(0, 0, 0, 0.55);
@@ -190,6 +191,7 @@
   .hearts .armor { color: var(--mint); margin-left: 4px; }
   .xp-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font: 700 12px/1 var(--f-pixel); letter-spacing: 0.08em; }
   .xp-row b { color: var(--gold); }
+  .xp-row span { white-space: nowrap; }
   .xp-row i { display: block; width: 92px; height: 6px; background: var(--line); }
   #rXp { display: block; height: 100%; background: var(--mint); transform-origin: left; }
   .slots { display: flex; gap: 5px; }
@@ -198,6 +200,7 @@
     font: 700 14px/1 var(--f-pixel); color: var(--night); background: var(--panel);
   }
   .slot.empty { border-style: dashed; }
+  .slot svg { width: 19px; height: 19px; margin-bottom: 3px; }
   .slot i { position: absolute; left: 0; right: 0; bottom: 1px; text-align: center; font-style: normal; font-size: 9px; line-height: 1; letter-spacing: 1px; }
   .rogue-mid { display: grid; gap: 5px; justify-items: center; }
   #rDepth { font: 34px/1 var(--f-display); text-shadow: 0 3px 0 var(--shade); white-space: nowrap; }
@@ -222,7 +225,7 @@
   .lu p { margin: 0; font: 700 12px/1.3 var(--f-pixel); letter-spacing: 0.16em; text-align: center; }
   .cards { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
   .upg {
-    display: grid; grid-template-columns: 46px minmax(0, 1fr); grid-template-areas: "ico tag" "ico nm" "ds ds" "pips pips";
+    display: grid; grid-template-columns: 46px minmax(0, 1fr); grid-template-areas: "ico tag" "ico nm" "ds ds" "chg chg" "pips pips";
     gap: 6px 12px; align-content: start; text-align: left; padding: 14px; border: 2px solid var(--ink); border-radius: 5px;
     background: var(--night); box-shadow: 0 6px 0 var(--ink); animation: deal 0.3s cubic-bezier(.2, 1.4, .4, 1) both;
   }
@@ -235,7 +238,32 @@
   .upg .tag { grid-area: tag; align-self: end; font: 700 10px/1 var(--f-pixel); letter-spacing: 0.14em; color: var(--gold); }
   .upg .nm { grid-area: nm; font: 21px/1.05 var(--f-display); }
   .upg .ds { grid-area: ds; font: 500 14px/1.35 var(--f-body); }
+  .upg .ico svg { width: 28px; height: 28px; }
+  .upg .chg { grid-area: chg; font: 700 11px/1.35 var(--f-pixel); letter-spacing: 0.05em; color: var(--mint); }
   .upg .pips { grid-area: pips; font: 12px/1 var(--f-body); letter-spacing: 3px; color: var(--gold); }
+  .lu-foot { width: 100%; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+  .reroll { width: auto; padding: 10px 16px; }
+  .strip { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+  .chip-ico { display: inline-flex; align-items: center; gap: 3px; font: 700 11px/1 var(--f-pixel); }
+  .chip-ico .ico { width: 20px; height: 20px; border-radius: 3px; display: grid; place-items: center; color: var(--night); }
+  .chip-ico .ico svg { width: 14px; height: 14px; }
+  .hud-strip { justify-content: flex-start; max-width: 230px; pointer-events: auto; }
+  .streak { color: var(--mint); }
+  .loadout-wrap { display: grid; gap: 8px; }
+  .lo-title { font: 700 11px/1 var(--f-pixel); letter-spacing: 0.18em; color: var(--gold); }
+  .lo-stats { font: 700 10px/1.6 var(--f-pixel); letter-spacing: 0.06em; opacity: 0.85; }
+  .loadout { display: grid; gap: 7px; }
+  body.mode-rogue #pause .card { width: min(680px, 100%); }
+  body.mode-rogue #pause h2 { font-size: clamp(34px, 9vw, 52px); }
+  @media (min-width: 700px) { .loadout { grid-template-columns: 1fr 1fr; gap: 9px 18px; } }
+  .lo-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; grid-template-areas: "ico nm rk" "ico fx fx"; gap: 2px 10px; align-items: center; }
+  .lo-row .ico { grid-area: ico; width: 28px; height: 28px; border-radius: 4px; display: grid; place-items: center; color: var(--night); }
+  .lo-row .ico svg { width: 18px; height: 18px; }
+  .lo-row .nm { grid-area: nm; font: 700 14px/1.1 var(--f-body); }
+  .lo-row .rk { grid-area: rk; font: 700 10px/1 var(--f-pixel); letter-spacing: 0.08em; color: var(--gold); }
+  .lo-row .fx { grid-area: fx; font: 500 12px/1.3 var(--f-body); opacity: 0.85; }
+  .lo-empty { margin: 0; font: 500 13px/1.4 var(--f-body); opacity: 0.8; }
+  @media (max-width: 699px) { .hud-strip { display: none !important; } }
   .build { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
   .chip { font: 700 10px/1 var(--f-pixel); letter-spacing: 0.08em; padding: 5px 7px 4px; border-radius: 3px; color: var(--night); }
 
@@ -250,6 +278,10 @@
     .wave-row { flex-direction: column; align-items: flex-end; gap: 4px; }
     #rDepth { font-size: 27px; }
     .hearts { font-size: 15px; white-space: normal; overflow-wrap: anywhere; max-width: 112px; }
+    #rGoal { font-size: 10px; letter-spacing: 0.08em; }
+    #bossBar { width: 28vw; }
+    .lo-row .nm { font-size: 13px; }
+    .lo-row .fx { font-size: 11px; }
     .slot { width: 28px; height: 28px; }
     .xp-row i { width: 64px; }
     #dashBtn { width: 84px; height: 84px; }
@@ -309,6 +341,7 @@
         <div class="xp-row"><span>LV <b id="rLevel">1</b></span><i><b id="rXp"></b></i></div>
       </div>
       <div id="slots" class="slots only-rogue"></div>
+      <div id="skillRow" class="strip hud-strip only-rogue"></div>
       <div class="hud-btns">
         <button id="btnPause" class="hud-btn" aria-label="Pause">II</button>
         <button id="btnSound" class="hud-btn" aria-label="Sound: music and effects">&#9834;</button>
@@ -325,7 +358,7 @@
     </div>
     <div class="cell right">
       <div class="plate wave-row only-arcade"><span>WAVE <b id="wave">1</b></span><span><b id="left">6</b> LEFT</span><span id="shotsBox">SHOTS <b id="shots">0/12</b></span></div>
-      <div class="plate wave-row only-rogue"><span>KILLS <b id="rKills">0</b></span></div>
+      <div class="plate wave-row only-rogue"><span>KILLS <b id="rKills">0</b></span><span id="rStreak" class="streak" hidden></span><span id="rStreakX" class="streak" hidden></span></div>
       <canvas id="radar" width="112" height="112" aria-label="Map"></canvas>
     </div>
   </div>
@@ -356,7 +389,7 @@
         <button id="btnRogue" class="mode rogue">
           <span class="mode-name">BULLET ROGUE</span>
           <span class="mode-best">DEEPEST <b id="bestRogue">&ndash;</b></span>
-          <span class="mode-desc">Your turret fires itself. Weave through bullet storms, level up, fill your gear slots and dive deeper into the maze.</span>
+          <span class="mode-desc">Your turret fires itself. Dodge the bullet storm, hold the uplink to open each exit, and build up your tank as you dive deeper.</span>
         </button>
       </div>
       <div class="controls only-keys">
@@ -376,6 +409,11 @@
   <div class="card">
     <div class="card-body">
       <h2 style="color: var(--ink)">PAUSED</h2>
+      <div class="loadout-wrap only-rogue">
+        <div class="lo-title">LOADOUT</div>
+        <div id="loStats" class="lo-stats"></div>
+        <div id="loadout" class="loadout"></div>
+      </div>
       <button id="btnResume" class="cta">RESUME</button>
       <button id="btnQuit" class="ghost">QUIT TO TITLE</button>
     </div>
@@ -400,6 +438,10 @@
     <h2 id="luTitle">LEVEL 2</h2>
     <p id="luSub">CHOOSE ONE</p>
     <div id="cards" class="cards"></div>
+    <div class="lu-foot">
+      <div id="luBuild" class="strip"></div>
+      <button id="btnReroll" class="ghost reroll">REROLL</button>
+    </div>
   </div>
 </section>
 
@@ -1283,6 +1325,7 @@ addEventListener('keydown', (e) => {
   keys.add(e.code);
   if (G.state === 'levelup') {
     if (e.code in CARD_KEYS) chooseUpgrade(CARD_KEYS[e.code]);
+    if (e.code === 'KeyR') rerollCards();
     return;
   }
   if (DASH_KEYS.has(e.code)) input.dash = true;
@@ -1382,6 +1425,7 @@ function pollGamepad() {
     if (b(15)) gpad.turn = gpad.mx = 1;
     gpad.fire = b(0) || b(5) || b(7);
     gpad.dash = b(0) || b(2) || b(5);
+    gpad.y = b(3);
     gpad.start = b(9);
     nav = b(14) || ax < -0.6 || b(12) ? -1 : b(15) || ax > 0.6 || b(13) ? 1 : 0;
     break;
@@ -1391,9 +1435,11 @@ function pollGamepad() {
     const cards = [...document.querySelectorAll('#cards .upg')], at = cards.indexOf(document.activeElement);
     if (nav && nav !== gpad.nav) cards[clamp(at + nav, 0, cards.length - 1)]?.focus({ preventScroll: true });
     if (gpad.dash && !gpad.dashPrev) document.activeElement?.click();
+    if (gpad.y && !gpad.yPrev) rerollCards();
   } else if (G.mode === 'rogue' && gpad.dash && !gpad.dashPrev) input.dash = true;
   gpad.nav = nav;
   gpad.dashPrev = gpad.dash;
+  gpad.yPrev = gpad.y;
   if (gpad.start && !gpad.startPrev) {
     if (G.state === 'title') startGame(G.lastMode);
     else if (G.state === 'over' && !ui.over.hidden) startGame(G.mode);
@@ -1660,6 +1706,7 @@ function togglePause() {
   G.prevState = G.state;
   G.state = 'paused';
   ui.pause.hidden = false;
+  if (G.mode === 'rogue') renderLoadout();
   audio.engine(0, false);
   releaseAllPointers();
   keys.clear();
@@ -2168,38 +2215,70 @@ const ENEMY_CAP = 60;
 const MAX_SLOTS = 4;
 const EB_MAX = 700, PB_MAX = 400, ORB_MAX = 300, MAZE_MAX = 400;
 
-// Skills are stackable numbers, picked on level-up. Equipment changes how you fight and needs a slot.
+// Skills are simple stat steps picked on level-up; most have no cap. Gear changes how you fight and needs a slot.
+const dashCdFor = (r) => Math.max(0.6, 2.4 * Math.pow(0.92, r));
+const regenFor = (r) => (r ? Math.max(6, 40 * Math.pow(0.8, r - 1)) : 0);
 const SKILLS = {
-  reload:   { name: 'Autoloader', ico: 'R', color: '#ff8a2a', max: 6, desc: 'Fire 15% faster' },
-  damage:   { name: 'Heavy Shells', ico: 'D', color: '#ff4b3a', max: 6, desc: 'Shells hit 20% harder' },
-  engine:   { name: 'Engine Tune', ico: 'M', color: '#3fd7ff', max: 5, desc: 'Drive 8% faster, turret turns quicker' },
-  velocity: { name: 'Long Barrel', ico: 'V', color: '#f2c53d', max: 4, desc: 'Shells fly 15% faster and 8% farther' },
-  crit:     { name: 'Gun Sight', ico: 'C', color: '#ffe14f', max: 4, desc: '+8% chance of a double-damage shot' },
-  salvage:  { name: 'Salvager', ico: 'X', color: '#6cf0a0', max: 4, desc: 'Earn 20% more experience' },
-  magnet:   { name: 'Tractor Beam', ico: 'T', color: '#b86cff', max: 3, desc: 'Pull in experience from 40% farther' },
-  plating:  { name: 'Hull Plating', ico: 'H', color: '#ff6b8a', max: 3, desc: '+1 max heart and repair 1' },
-  nitro:    { name: 'Nitro', ico: 'N', color: '#7d97ff', max: 3, desc: 'Dash recharges 18% faster' },
-  regen:    { name: 'Field Repair', ico: '+', color: '#6cf0a0', max: 3, desc: (r) => `Repair a heart every ${[40, 28, 18][r - 1]} s` },
+  reload:   { name: 'Autoloader', color: '#ff8a2a', desc: '+10% fire rate', fx: (r) => `+${r * 10}% fire rate` },
+  damage:   { name: 'Heavy Shells', color: '#ff4b3a', desc: '+10% shell damage', fx: (r) => `+${r * 10}% damage` },
+  velocity: { name: 'Long Barrel', color: '#f2c53d', desc: '+10% shell speed, +5% range', fx: (r) => `+${r * 10}% shell speed, +${r * 5}% range` },
+  engine:   { name: 'Engine Tune', color: '#3fd7ff', desc: '+6% drive speed, quicker turret', fx: (r) => `+${r * 6}% speed` },
+  crit:     { name: 'Gun Sight', color: '#ffe14f', max: 19, desc: '+5% chance of a double-damage shot', fx: (r) => `${5 + r * 5}% crit chance` },
+  salvage:  { name: 'Salvager', color: '#6cf0a0', desc: '+10% experience', fx: (r) => `+${r * 10}% experience` },
+  magnet:   { name: 'Tractor Beam', color: '#b86cff', desc: '+20% pickup range', fx: (r) => `+${r * 20}% pickup range` },
+  plating:  { name: 'Hull Plating', color: '#ff6b8a', max: 5, desc: '+1 max heart and repair 1', fx: (r) => `+${r} max heart${r > 1 ? 's' : ''}` },
+  nitro:    { name: 'Nitro', color: '#7d97ff', desc: 'Dash recharges 8% faster', fx: (r) => `dash every ${dashCdFor(r).toFixed(1)} s` },
+  regen:    { name: 'Field Repair', color: '#6cf0a0', desc: 'Repair hearts over time, faster each rank', fx: (r) => `a heart every ${Math.round(regenFor(r))} s` },
+  ram:      { name: 'Battering Ram', color: '#ffa53a', desc: 'Dashing through enemies hurts them', fx: (r) => `dash hits for ${r * 150}% damage` },
 };
 const EQUIP = {
-  multi:  { name: 'Multi-Cannon', ico: 'W', color: '#f2c53d', desc: ['Fire 2 shells at once', 'Fire 3 shells at once', 'Fire 4 shells at once'] },
-  bounce: { name: 'Ricochet Rounds', ico: 'B', color: '#56e8ff', desc: ['Shells bounce off walls once', 'Shells bounce twice', 'Bounce 3 times, +25% damage per bounce'] },
-  homing: { name: 'Seeker Shells', ico: 'S', color: '#b86cff', desc: ['Shells curve toward enemies', 'Shells track harder', 'Shells lock on, +15% range'] },
-  pierce: { name: 'Piercing Rounds', ico: 'P', color: '#ff8a2a', desc: ['Shells punch through 1 enemy', 'Through 2 enemies', 'Through 3 enemies'] },
-  flak:   { name: 'Flak Shells', ico: 'F', color: '#ff4b3a', desc: ['Hits burst for 50% splash damage', 'Bigger bursts, 70% splash', 'Huge bursts, 90% splash'] },
-  armor:  { name: 'Reactive Armor', ico: 'A', color: '#6cf0a0', desc: ['Blocks one hit, recharges in 10 s', 'Recharges in 7 s', 'Holds 2 charges, 5 s recharge'] },
-  drones: { name: 'Escort Drones', ico: 'O', color: '#43e0d6', desc: ['A drone circles you, rams enemies and blocks shots', '2 drones', '3 drones'] },
-  pulse:  { name: 'EMP Pulse', ico: 'E', color: '#7d97ff', desc: ['Every 6 s a pulse wipes nearby shots and hurts enemies', 'Every 5 s, wider', 'Every 4 s, widest'] },
+  multi:  { name: 'Multi-Cannon', color: '#f2c53d', desc: ['Fire 2 shells at once', 'Fire 3 shells at once', 'Fire 4 shells at once'] },
+  bounce: { name: 'Ricochet Rounds', color: '#56e8ff', desc: ['Shells bounce off walls once', 'Shells bounce twice', 'Bounce 3 times, +25% damage per bounce'] },
+  homing: { name: 'Seeker Shells', color: '#b86cff', desc: ['Shells curve toward enemies', 'Shells track harder', 'Shells lock on, +15% range'] },
+  pierce: { name: 'Piercing Rounds', color: '#ff8a2a', desc: ['Shells punch through 1 enemy', 'Through 2 enemies', 'Through 3 enemies'] },
+  flak:   { name: 'Flak Shells', color: '#ff4b3a', desc: ['Hits burst for 50% splash damage', 'Bigger bursts, 70% splash', 'Huge bursts, 90% splash'] },
+  armor:  { name: 'Reactive Armor', color: '#6cf0a0', desc: ['Blocks one hit, recharges in 10 s', 'Recharges in 7 s', 'Holds 2 charges, 5 s recharge'] },
+  drones: { name: 'Escort Drones', color: '#43e0d6', desc: ['A drone circles you, rams enemies and blocks shots', '2 drones', '3 drones'] },
+  pulse:  { name: 'EMP Pulse', color: '#7d97ff', desc: ['Every 6 s a pulse wipes nearby shots and hurts enemies', 'Every 5 s, wider', 'Every 4 s, widest'] },
 };
-// Maze pickups: the arcade letter cubes, but each one is a permanent skill rank.
+// Maze pickups: the arcade cubes, but each one is a permanent skill rank, a repair, or a gear crate.
 const BOOSTS = {
-  reload: { ico: 'R', color: '#ff8a2a', skill: 'reload' },
-  damage: { ico: 'D', color: '#ff4b3a', skill: 'damage' },
-  engine: { ico: 'M', color: '#3fd7ff', skill: 'engine' },
-  repair: { ico: '+', color: '#6cf0a0' },
-  crate:  { ico: '?', color: '#f2c53d' },
+  reload: { icon: 'reload', color: '#ff8a2a', skill: 'reload' },
+  damage: { icon: 'damage', color: '#ff4b3a', skill: 'damage' },
+  engine: { icon: 'engine', color: '#3fd7ff', skill: 'engine' },
+  repair: { icon: 'regen', color: '#6cf0a0' },
+  cache:  { glyph: '?', color: '#56e8ff' },   // supply crate in a dead end: pick gear
+  crate:  { glyph: '?', color: '#f2c53d' },   // boss crate: pick gear and gain a slot
 };
-const xpNeed = (lvl) => Math.round(6 + (lvl - 1) * 5 + Math.pow(lvl - 1, 1.5) * 1.2);
+// 24-unit line and shape icons shared by the HUD, cards, loadout and pickup cubes.
+const ICONS = {
+  reload:   { fill: true, d: 'M2 21V10l2.5-5L7 10v11zM9.5 21V10L12 5l2.5 5v11zM17 21V10l2.5-5L22 10v11z' },
+  damage:   { fill: true, d: 'M7 22V11c0-5 2.5-8.5 5-9.5 2.5 1 5 4.5 5 9.5v11z' },
+  velocity: { d: 'M2 12h17M14 6l6 6-6 6M2 6h6M2 18h6' },
+  engine:   { d: 'M4 5l7 7-7 7M12 5l7 7-7 7' },
+  crit:     { d: 'M12 2v6M12 16v6M2 12h6M16 12h6M18 12a6 6 0 1 1-12 0a6 6 0 1 1 12 0' },
+  salvage:  { fill: true, d: 'M6 3h12l4 6-10 13L2 9z' },
+  magnet:   { fill: true, d: 'M4 3h5v9a3 3 0 0 0 6 0V3h5v9a8 8 0 0 1-16 0z' },
+  plating:  { fill: true, d: 'M12 21C5 15 2 12 2 8a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 4-3 7-10 13z' },
+  nitro:    { fill: true, d: 'M14 2L4 14h7l-2 8 11-13h-7z' },
+  regen:    { fill: true, d: 'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z' },
+  ram:      { fill: true, d: 'M2 9h9V4l11 8-11 8v-5H2z' },
+  multi:    { d: 'M12 21L5 4M12 21V3M12 21l7-17' },
+  bounce:   { d: 'M2 5l6 14 6-14 6 14M16.5 17.5l3.5 1.5 1-3.8' },
+  homing:   { d: 'M3 20C4 10 10 5 19 5M15 1.5L19 5l-4 3.5' },
+  pierce:   { d: 'M2 12h19M17 8l4 4-4 4M10 4v16' },
+  flak:     { d: 'M12 2v6M12 16v6M2 12h6M16 12h6M5 5l4 4M15 15l4 4M19 5l-4 4M9 15l-4 4' },
+  armor:    { fill: true, d: 'M12 2l9 3.5V11c0 5.5-4 9.5-9 11-5-1.5-9-5.5-9-11V5.5z' },
+  drones:   { d: 'M19 12a7 7 0 1 1-14 0a7 7 0 1 1 14 0', d2: 'M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M15.5 6a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0' },
+  pulse:    { d: 'M14 12a2 2 0 1 1-4 0a2 2 0 1 1 4 0M17.5 12a5.5 5.5 0 1 1-11 0a5.5 5.5 0 1 1 11 0M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0' },
+};
+function iconSvg(id) {
+  const ic = ICONS[id];
+  const main = ic.fill ? `<path d="${ic.d}" fill="currentColor"/>`
+    : `<path d="${ic.d}" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`;
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${main}${ic.d2 ? `<path d="${ic.d2}" fill="currentColor"/>` : ''}</svg>`;
+}
+const xpNeed = (lvl) => Math.round(8 + (lvl - 1) * 4 + Math.pow(lvl - 1, 1.25) * 1.5);
 const ebSpeed = (base) => base * Math.min(1.6, 1 + 0.035 * (RG.depth - 1));
 
 // ============================================================
@@ -2217,6 +2296,7 @@ const FM = {
   core: lam('#2a2e40'),
   coreGlow: new THREE.MeshBasicMaterial({ color: '#ff3b5c' }),
   boss: lam('#6a3fd0'), bossDark: lam('#3c2390'),
+  elite: lam('#f2c53d', { emissive: '#4a3300' }),
 };
 function shadowed(m) { m.castShadow = m.receiveShadow = true; return m; }
 
@@ -2272,7 +2352,7 @@ const FOES = {
     },
   },
   boss: {
-    r: 3.4, hp: 1300, xp: 100, speed: 2.8, scale: 2.1, debris: ['#6a3fd0', '#3c2390', '#ffe14f'],
+    r: 3.4, hp: 1000, xp: 100, speed: 2.8, scale: 2.1, debris: ['#6a3fd0', '#3c2390', '#ffe14f'],
     make() {
       const g = makeTank(FM.boss, FM.bossDark);
       for (const sx of [-0.55, 0.55]) g.userData.turret.add(part(FM.bossDark, 0.22, 0.22, 1.4, sx, 0.05, 1.1));
@@ -2309,8 +2389,24 @@ for (const [k, hex] of Object.entries({ pink: '#ff4fa3', orange: '#ffa53a', cyan
 }
 const PB_COL = { normal: new THREE.Color('#fff3b0'), crit: new THREE.Color('#ffe14f') };
 const ORB_COL = { 1: new THREE.Color('#6cf0a0'), 5: new THREE.Color('#56e8ff'), 25: new THREE.Color('#ffe14f') };
+// Pickup cube faces: the same icons, drawn dark on the boost's colour.
+function iconTex(id, bg) {
+  return pixelTexture(64, (g, sz) => {
+    g.fillStyle = bg; g.fillRect(0, 0, sz, sz);
+    g.fillStyle = '#14172b'; g.fillRect(0, 0, sz, 5); g.fillRect(0, sz - 5, sz, 5); g.fillRect(0, 0, 5, sz); g.fillRect(sz - 5, 0, 5, sz);
+    const ic = ICONS[id];
+    g.save();
+    g.translate(sz * 0.18, sz * 0.18);
+    g.scale(sz * 0.64 / 24, sz * 0.64 / 24);
+    g.fillStyle = g.strokeStyle = '#14172b';
+    g.lineWidth = 2.6; g.lineCap = g.lineJoin = 'round';
+    if (ic.fill) g.fill(new Path2D(ic.d)); else g.stroke(new Path2D(ic.d));
+    if (ic.d2) g.fill(new Path2D(ic.d2));
+    g.restore();
+  });
+}
 const boostMat = {};
-for (const [id, b] of Object.entries(BOOSTS)) boostMat[id] = lam('#ffffff', { map: letterTex(b.ico, b.color), emissive: '#222222' });
+for (const [id, b] of Object.entries(BOOSTS)) boostMat[id] = lam('#ffffff', { map: b.glyph ? letterTex(b.glyph, b.color) : iconTex(b.icon, b.color), emissive: '#222222' });
 
 // Exit gate, entrance pad, shield bubble, escort drones, EMP ring.
 const padGeo = new THREE.PlaneGeometry(7, 7);
@@ -2337,6 +2433,22 @@ pulseRing.rotation.x = -Math.PI / 2;
 pulseRing.position.y = 0.3;
 for (const o of [gate, exitPad, entryPad, shieldMesh, pulseRing, ...droneMeshes]) { o.visible = false; scene.add(o); }
 
+// Uplink zone: hold it to charge the exit gate. The ring fills, the beam climbs, the gem spins up.
+const UPLINK_R = 4.5;
+const uplink = new THREE.Group();
+const upRing = new THREE.Mesh(new THREE.RingGeometry(UPLINK_R - 0.4, UPLINK_R, 48), new THREE.MeshBasicMaterial({ color: '#56e8ff', transparent: true, opacity: 0.75, depthWrite: false, side: THREE.DoubleSide }));
+const upFill = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: '#56e8ff', transparent: true, opacity: 0.25, depthWrite: false }));
+for (const m of [upRing, upFill]) m.rotation.x = -Math.PI / 2;
+upRing.position.y = 0.06;
+upFill.position.y = 0.05;
+const upGem = new THREE.Mesh(crawlerGeo, new THREE.MeshBasicMaterial({ color: '#56e8ff' }));
+upGem.position.y = 3.2;
+upGem.scale.setScalar(0.7);
+const upBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1, 8, 1, true), new THREE.MeshBasicMaterial({ color: '#56e8ff', transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
+uplink.add(upRing, upFill, upGem, upBeam, part(FM.base, 0.5, 2.4, 0.5, 0, 1.2, 0));
+uplink.visible = false;
+scene.add(uplink);
+
 // Health bars for the tougher enemies: billboards that always face the camera.
 const barGeo = new THREE.PlaneGeometry(1, 1);
 const barBg = new THREE.MeshBasicMaterial({ color: '#14172b', transparent: true, opacity: 0.8, depthTest: false });
@@ -2355,32 +2467,35 @@ function makeBar(w) {
 // ============================================================
 const RG = {
   depth: 1, level: 1, xp: 0, xpNext: xpNeed(1), pending: 0, hearts: 5, kills: 0, time: 0, grazes: 0,
-  skills: {}, equip: [], slots: 3, st: null,
+  skills: {}, equip: [], slots: 3, st: null, rerolls: 1,
   armor: 0, armorT: 0, pulseT: 0, pulseAnim: 1, pulseR: 0, regenT: 0, droneA: 0, droneTick: 0,
-  dashT: 0, dashCd: 0, dashX: 0, dashZ: 1, ghost: 0,
+  dashT: 0, dashCd: 0, dashX: 0, dashZ: 1, ghost: 0, ramHit: new Set(),
   turretA: 0, target: null, retarget: 0,
   maze: null, flow: null, flowCell: -1, exitCell: 0, exitX: 0, exitZ: 0, exitOpen: false, exitFlow: null,
+  uplink: null, inUplink: false, waveT: 0, raids: 0, mazeTime: 0,
   coresLeft: 0, coreCount: 0, boss: null, idle: 0,
-  enemies: [], pickups: [], lastGraze: 0, slotSig: '',
+  streak: 0, streakT: 0, bestStreak: 0,
+  enemies: [], pickups: [], lastGraze: 0, slotSig: '', stripSig: '',
 };
 let pbs = [], ebs = [], orbs = [];
 
 function rogueStats() {
   const s = RG.skills, eq = (id) => (RG.equip.find((e) => e.id === id) || { lvl: 0 }).lvl;
   RG.st = {
-    fireRate: 3 * (1 + 0.15 * s.reload),
-    damage: 10 * (1 + 0.2 * s.damage),
-    moveSpeed: 11 * (1 + 0.08 * s.engine),
-    turnRate: 7 * (1 + 0.06 * s.engine),
-    traverse: 8 * (1 + 0.1 * s.engine),
-    bulletSpeed: 30 * (1 + 0.15 * s.velocity),
-    range: 21 * (1 + 0.08 * s.velocity) * (eq('homing') === 3 ? 1.15 : 1),
-    crit: 0.05 + 0.08 * s.crit,
-    xpMult: 1 + 0.2 * s.salvage,
-    magnet: 6 * (1 + 0.4 * s.magnet),
+    fireRate: 3 * (1 + 0.1 * s.reload),
+    damage: 10 * (1 + 0.1 * s.damage),
+    moveSpeed: 11 * (1 + 0.06 * s.engine),
+    turnRate: 7 * (1 + 0.05 * s.engine),
+    traverse: 8 * (1 + 0.08 * s.engine),
+    bulletSpeed: 30 * (1 + 0.1 * s.velocity),
+    range: Math.min(40, 21 * (1 + 0.05 * s.velocity) * (eq('homing') === 3 ? 1.15 : 1)),
+    crit: Math.min(1, 0.05 + 0.05 * s.crit),
+    xpMult: 1 + 0.1 * s.salvage,
+    magnet: 6 * (1 + 0.2 * s.magnet),
     maxHearts: 5 + s.plating,
-    dashCd: 2.4 * (1 - 0.18 * s.nitro),
-    regen: [0, 40, 28, 18][s.regen],
+    dashCd: dashCdFor(s.nitro),
+    regen: regenFor(s.regen),
+    ram: 1.5 * s.ram,
     shots: 1 + eq('multi'),
     bounces: eq('bounce'),
     bounceBonus: eq('bounce') === 3 ? 1.25 : 1,
@@ -2396,8 +2511,8 @@ function rogueStats() {
 function startRogueRun() {
   Object.assign(RG, {
     depth: 1, level: 1, xp: 0, xpNext: xpNeed(1), pending: 0, kills: 0, time: 0, grazes: 0,
-    skills: Object.fromEntries(Object.keys(SKILLS).map((k) => [k, 0])), equip: [], slots: 3,
-    armor: 0, armorT: 0, pulseT: 0, regenT: 0, dashCd: 0, slotSig: '',
+    skills: Object.fromEntries(Object.keys(SKILLS).map((k) => [k, 0])), equip: [], slots: 3, rerolls: 1,
+    armor: 0, armorT: 0, pulseT: 0, regenT: 0, dashCd: 0, streak: 0, streakT: 0, bestStreak: 0, slotSig: '', stripSig: '',
   });
   rogueStats();
   RG.hearts = RG.st.maxHearts;
@@ -2407,10 +2522,10 @@ function startRogueRun() {
 function clearRogue() {
   for (const e of RG.enemies) { scene.remove(e.mesh); if (e.bar) scene.remove(e.bar); }
   for (const k of RG.pickups) scene.remove(k.mesh);
-  RG.enemies = []; RG.pickups = []; RG.boss = null; RG.target = null;
+  RG.enemies = []; RG.pickups = []; RG.boss = null; RG.target = null; RG.uplink = null;
   pbs = []; ebs = []; orbs = [];
   ebCore.count = ebGlow.count = pbMesh.count = orbMesh.count = mazeMesh.count = 0;
-  for (const o of [gate, exitPad, entryPad, shieldMesh, pulseRing, ...droneMeshes]) o.visible = false;
+  for (const o of [gate, exitPad, entryPad, shieldMesh, pulseRing, uplink, ...droneMeshes]) o.visible = false;
   player.mesh.userData.turret.rotation.y = 0;
 }
 
@@ -2542,7 +2657,7 @@ function buildMaze(depth) {
   const boss = depth % 5 === 0;
   G.palette = PALETTES[(depth - 1) % PALETTES.length];
   applyPalette(G.palette);
-  const n = boss ? 7 : Math.min(5 + Math.floor((depth - 1) / 2), 9);
+  const n = boss ? 7 : Math.min(5 + Math.floor((depth - 1) / 3), 8);
   const m = RG.maze = makeMaze(n, boss);
   for (const [x0, x1, z0, z1] of mazeWalls(m)) walls.push({ x0, x1, z0, z1, mesh: null });
   indexWalls();
@@ -2571,6 +2686,11 @@ function buildMaze(depth) {
   gate.visible = exitPad.visible = entryPad.visible = true;
 
   populateMaze(m, dist, entry, exit, boss);
+  if (RG.uplink) {
+    uplink.position.set(RG.uplink.x, 0, RG.uplink.z);
+    uplink.visible = true;
+  }
+  RG.mazeTime = 0; RG.raids = 0; RG.waveT = 1.2; RG.inUplink = false;
 
   resetPlayer();
   player.x = sc.x; player.z = sc.z - 2;
@@ -2580,12 +2700,12 @@ function buildMaze(depth) {
   fadeIn();
   setState('countdown');
   ui.touch.hidden = !isTouch;
-  banner(`MAZE ${depth}`, boss ? 'BOSS · DESTROY THE FORTRESS' : `DESTROY ${RG.coresLeft} CORES · THEN EXIT`, 1.6);
+  banner(`MAZE ${depth}`, boss ? 'BOSS \u00b7 DESTROY THE FORTRESS' : 'HOLD THE BLUE UPLINK \u00b7 CORES CHARGE IT TOO', 1.8);
   audio.beep(false);
 }
 
 function populateMaze(m, dist, entry, exit, boss) {
-  const d = RG.depth, all = [...Array(m.n * m.n).keys()], used = new Set();
+  const d = RG.depth, all = [...Array(m.n * m.n).keys()], used = new Set([entry]);
   const openings = (i) => 4 - popcount(m.cells[i]);
   const inRoom = new Set();
   for (const r of m.rooms) for (let z = r.z0; z < r.z0 + r.h; z++) for (let x = r.x0; x < r.x0 + r.w; x++) inRoom.add(m.idx(x, z));
@@ -2600,36 +2720,46 @@ function populateMaze(m, dist, entry, exit, boss) {
     }
     return c;
   };
+  const eliteChance = Math.min(0.25, 0.03 + 0.025 * d);
   const place = (kind, cells, r) => {
     const i = pick(cells) ?? pick(free(2));
     if (i === null || i === undefined) return null;
     used.add(i);
     const p = spot(i, r);
-    return spawnFoe(kind, p.x, p.z);
+    return spawnFoe(kind, p.x, p.z, null, Math.random() < eliteChance);
   };
 
   RG.coresLeft = 0;
+  RG.uplink = null;
   if (boss) {
     const r = m.rooms[0], c = cellCenter(m, m.idx(r.x0 + 1, r.z0 + 1));
     RG.boss = spawnFoe('boss', c.x, c.z);
     for (let z = r.z0; z < r.z0 + r.h; z++) for (let x = r.x0; x < r.x0 + r.w; x++) used.add(m.idx(x, z));
   } else {
-    // Cores: the first deep in the maze, the rest spread apart.
-    const nCores = Math.min(2 + Math.floor((d - 1) / 2), 5), cores = [];
-    let cand = all.filter((i) => dist[i] >= 3 && i !== exit);
+    // The uplink sits partway along the route, in a room when there is one.
+    const maxD = Math.max(...dist);
+    const mid = all.filter((i) => i !== exit && i !== entry && dist[i] >= Math.max(2, Math.round(maxD * 0.35)) && dist[i] <= Math.round(maxD * 0.75));
+    const rooms = mid.filter((i) => inRoom.has(i));
+    const pool = rooms.length ? rooms : mid.length ? mid : all.filter((i) => i !== exit && i !== entry);
+    const ui = pool[Math.floor(Math.random() * pool.length)], uc = cellCenter(m, ui);
+    RG.uplink = { x: uc.x, z: uc.z, cell: ui, charge: 0, need: Math.min(20, 11 + d), flow: mazeDist(m, ui), tick: 0, col: '' };
+    used.add(ui);
+    // Cores are optional: each one spawns trouble, and destroying it charges the uplink by a third.
+    const nCores = Math.min(2 + Math.floor((d - 1) / 2), 4), cores = [];
+    let cand = all.filter((i) => dist[i] >= 3 && i !== exit && !used.has(i));
     const gap = (a, b) => Math.abs((a % m.n) - (b % m.n)) + Math.abs(Math.floor(a / m.n) - Math.floor(b / m.n));
     for (let k = 0; k < nCores && cand.length; k++) {
       let best = cand[0], bs = -Infinity;
       for (const i of cand) {
-        const s = (cores.length ? Math.min(...cores.map((j) => gap(i, j))) * 3 : 0) + dist[i] * 0.6 + Math.random();
-        if (s > bs) { bs = s; best = i; }
+        const sc = (cores.length ? Math.min(...cores.map((j) => gap(i, j))) * 3 : 0) + gap(i, ui) + dist[i] * 0.6 + Math.random();
+        if (sc > bs) { bs = sc; best = i; }
       }
       cores.push(best);
       cand = cand.filter((i) => i !== best);
     }
     for (const i of cores) {
-      const c = cellCenter(m, i), e = spawnFoe('core', c.x, c.z);
-      e.flow = mazeDist(m, i);
+      const c = cellCenter(m, i);
+      spawnFoe('core', c.x, c.z);
       used.add(i);
       RG.coresLeft++;
     }
@@ -2651,10 +2781,15 @@ function populateMaze(m, dist, entry, exit, boss) {
     const i = pick(roam) ?? pick(free(2));
     if (i === null || i === undefined) break;
     used.add(i);
-    for (let s = 0, size = 3 + (Math.random() < 0.5 ? 1 : 0); s < size; s++) { const p = spot(i, 1); spawnFoe('crawler', p.x, p.z); }
+    for (let n = 0, size = 3 + (Math.random() < 0.5 ? 1 : 0); n < size; n++) { const p = spot(i, 1); spawnFoe('crawler', p.x, p.z); }
   }
-  // Supplies wait in the dead ends.
-  const ends = all.filter((i) => openings(i) === 1 && i !== entry && i !== exit);
+  // Supplies: a gear crate waits in the deepest dead end from maze 2, boosts in the others.
+  const ends = all.filter((i) => openings(i) === 1 && i !== entry && i !== exit && !used.has(i));
+  if (!boss && d >= 2 && ends.length) {
+    ends.sort((a, b) => dist[b] - dist[a]);
+    const c = cellCenter(m, ends.shift());
+    dropBoost(c.x, c.z, 'cache');
+  }
   for (let k = 0; k < 2; k++) {
     const i = pick(ends);
     if (i === null) break;
@@ -2666,19 +2801,21 @@ function populateMaze(m, dist, entry, exit, boss) {
 // ============================================================
 // Bullet Rogue: enemies
 // ============================================================
-function spawnFoe(kind, x, z, home = null) {
-  const def = FOES[kind], s = 1 + 0.22 * (RG.depth - 1);
+function spawnFoe(kind, x, z, home = null, elite = false) {
+  const def = FOES[kind], s = (1 + 0.22 * (RG.depth - 1)) * (elite ? 3 : 1);
   const e = {
     kind, def, x, z, r: def.r, hp: def.hp * s, maxHp: def.hp * s, a: rand(0, TAU), vx: 0, vz: 0,
     age: 0, cd: rand(0.8, 2.2), cd2: 0, ph: rand(0, 2), phase: -1, ang: rand(0, TAU), dir: Math.random() < 0.5 ? -1 : 1,
     awake: false, aggro: false, alive: true, pop: 0, los: false, losT: 0, dist: 99, home, kids: 0, spawnT: 2, spawned: 0,
-    mesh: def.make(), bar: null, flow: null,
+    mesh: def.make(), bar: null, elite,
   };
   e.body = e.mesh.userData.body || null;
+  // Elites: gold, three times the armour, triple experience and a guaranteed pickup.
+  if (elite) e.mesh.traverse((o) => { if (o.isMesh && o.material !== M.tread) o.material = FM.elite; });
   e.mesh.position.set(x, 0, z);
   e.mesh.scale.setScalar(0.001);
   scene.add(e.mesh);
-  if (def.bar) { e.bar = makeBar(def.r * 1.5); scene.add(e.bar); }
+  if (def.bar || elite) { e.bar = makeBar(def.r * 1.5); scene.add(e.bar); }
   if (home) home.kids++;
   RG.enemies.push(e);
   return e;
@@ -2839,7 +2976,7 @@ function updateEnemies(dt, active) {
     } else e.awake = dist < 36;
     if (e.awake) awake++;
     e.pop = Math.max(0, e.pop - dt * 6);
-    e.mesh.scale.setScalar(e.def.scale * Math.min(1, e.age / 0.3) * (1 + e.pop * 0.18));
+    e.mesh.scale.setScalar(e.def.scale * (e.elite ? 1.15 : 1) * Math.min(1, e.age / 0.3) * (1 + e.pop * 0.18));
     if (active && e.awake && e.age > 0.3) FOE_AI[e.kind](e, dt, dx / dist, dz / dist, dist);
     else if (e.body) e.body.rotation.y += dt;
     if (!e.alive) continue;
@@ -2883,15 +3020,20 @@ function killEnemy(e, noXp = false) {
   audio.boom(big ? 1.2 : 0.45);
   if (noXp) return;
   RG.kills++;
-  dropXp(e.x, e.z, e.def.xp * (1 + 0.15 * (RG.depth - 1)));
-  if (e.kind === 'heavy' && Math.random() < 0.25) dropBoost(e.x, e.z);
-  if ((e.kind === 'sentry' || e.kind === 'spinner') && Math.random() < 0.06) dropBoost(e.x, e.z);
+  RG.streak = RG.streakT > 0 ? RG.streak + 1 : 1;
+  RG.streakT = 2;
+  RG.bestStreak = Math.max(RG.bestStreak, RG.streak);
+  if (STREAKS[RG.streak]) { popup(STREAKS[RG.streak], player.x, 5, player.z, 'big'); audio.bonus(); }
+  dropXp(e.x, e.z, e.def.xp * (1 + 0.25 * (RG.depth - 1)) * (e.elite ? 3 : 1) * streakMult());
+  if (e.elite) { popup('ELITE DOWN', e.x, 4, e.z, 'time'); dropBoost(e.x, e.z); }
+  else if (e.kind === 'heavy' && Math.random() < 0.25) dropBoost(e.x, e.z);
+  else if ((e.kind === 'sentry' || e.kind === 'spinner') && Math.random() < 0.06) dropBoost(e.x, e.z);
   if (e.kind === 'core') {
     RG.coresLeft--;
-    popup('CORE DOWN', e.x, 5, e.z, 'big');
+    popup('CORE DOWN', e.x, 5, e.z, 'big', '+35% UPLINK');
     dropBoost(e.x, e.z);
     G.hitstop = Math.max(G.hitstop, 0.05);
-    if (RG.coresLeft <= 0) openExit();
+    addCharge(0.35);
   }
   if (e.kind === 'boss') {
     RG.boss = null;
@@ -2903,6 +3045,9 @@ function killEnemy(e, noXp = false) {
     openExit();
   }
 }
+// Kill streak: kills less than two seconds apart keep it alive and boost experience, up to x1.6.
+const STREAKS = { 10: 'RAMPAGE!', 25: 'UNSTOPPABLE!', 50: 'TANKAGEDDON!' };
+const streakMult = () => 1 + Math.min(RG.streak, 40) * 0.015;
 
 // ============================================================
 // Bullet Rogue: player
@@ -2958,6 +3103,15 @@ function updateRoguePlayer(dt, active) {
     p.x += dx * k; p.z += dz * k;
   }
   collideWalls(p, TANK_R);
+  // Battering Ram: a dash hurts every enemy it plows through, once each.
+  if (RG.dashT > 0 && st.ram) {
+    for (const e of RG.enemies) {
+      if (!e.alive || RG.ramHit.has(e) || Math.hypot(e.x - p.x, e.z - p.z) > e.r + TANK_R + 0.4) continue;
+      RG.ramHit.add(e);
+      damageEnemy(e, st.damage * st.ram, false, e.x, e.z);
+      addShake(0.2);
+    }
+  }
   if (p.invuln > 0) p.invuln -= dt;
 
   // Turret: track the nearest enemy in clear view and fire on its own.
@@ -2995,6 +3149,7 @@ function startDash(ix, iz, mag) {
   RG.dashX = dx; RG.dashZ = dz;
   RG.dashT = 0.17;
   RG.dashCd = RG.st.dashCd;
+  RG.ramHit.clear();
   RG.ghost = 0.32;
   player.invuln = Math.max(player.invuln, 0.32);
   addShake(0.15);
@@ -3226,7 +3381,7 @@ function updateOrbs(dt, active) {
 function dropBoost(x, z, type) {
   type = type || ['reload', 'damage', 'engine', 'repair'][Math.floor(Math.random() * 4)];
   const mesh = shadowed(new THREE.Mesh(boxGeo, boostMat[type]));
-  mesh.scale.setScalar(type === 'crate' ? 1.9 : 1.3);
+  mesh.scale.setScalar(type === 'crate' || type === 'cache' ? 1.9 : 1.3);
   mesh.position.set(x, 1.5, z);
   scene.add(mesh);
   RG.pickups.push({ type, x, z, mesh, age: 0, dead: false });
@@ -3246,8 +3401,8 @@ function collectBoost(k) {
   scene.remove(k.mesh);
   flash(k.x, 1.5, k.z, 2.4, BOOSTS[k.type].color, 0.25);
   audio.pickup();
-  if (k.type === 'crate') {
-    const newSlot = RG.slots < MAX_SLOTS;
+  if (k.type === 'crate' || k.type === 'cache') {
+    const newSlot = k.type === 'crate' && RG.slots < MAX_SLOTS;
     if (newSlot) RG.slots++;
     openLevelUp('crate', newSlot);
     return;
@@ -3258,11 +3413,9 @@ function collectBoost(k) {
     return;
   }
   const id = BOOSTS[k.type].skill;
-  if (RG.skills[id] < SKILLS[id].max) {
-    RG.skills[id]++;
-    rogueStats();
-    popup(`${SKILLS[id].name.toUpperCase()} +1`, k.x, 3, k.z);
-  } else { gainXp(10); popup('+10 XP', k.x, 3, k.z, 'time'); }
+  RG.skills[id]++;
+  rogueStats();
+  popup(`${SKILLS[id].name.toUpperCase()} +1`, k.x, 3, k.z, '', SKILLS[id].fx(RG.skills[id]));
 }
 
 function updateEquipment(dt, active) {
@@ -3315,12 +3468,61 @@ function emitPulse() {
 }
 
 function openExit() {
+  if (RG.exitOpen) return;
   RG.exitOpen = true;
+  RG.inUplink = false;
+  if (RG.uplink) RG.uplink.charge = 1;
+  for (const o of orbs) o.pull = true;   // sweep up every orb left on the map, so holding the zone never wastes experience
   RG.exitFlow = mazeDist(RG.maze, RG.exitCell);
   exitPad.material.color.set('#6cf0a0');
   gateField.material.color.set('#6cf0a0');
   banner('EXIT OPEN', 'HEAD FOR THE GATE', 1.6);
   audio.clear();
+}
+function addCharge(v) {
+  const u = RG.uplink;
+  if (!u || RG.exitOpen) return;
+  u.charge = Math.min(1, u.charge + v);
+  if (u.charge >= 1) openExit();
+}
+// Holding the uplink draws attackers from a couple of cells away.
+function spawnRaid() {
+  const m = RG.maze, cells = [];
+  for (let i = 0; i < m.n * m.n; i++) if (RG.flow[i] === 2 || RG.flow[i] === 3) cells.push(i);
+  if (!cells.length) return;
+  const c = cellCenter(m, cells[Math.floor(Math.random() * cells.length)]);
+  RG.raids++;
+  const kinds = RG.depth >= 3 ? ['crawler', 'crawler', 'crawler'] : ['crawler', 'crawler'];
+  if (RG.depth >= 3 && RG.raids % 2 === 0) kinds.push('gunner');
+  for (const kind of kinds) {
+    if (RG.enemies.length >= ENEMY_CAP) break;
+    const x = c.x + rand(-3, 3), z = c.z + rand(-3, 3);
+    if (!clearOfWalls(x, z, 1.6)) continue;
+    spawnFoe(kind, x, z).aggro = true;
+    flash(x, 1, z, 1.6, '#56e8ff', 0.25);
+  }
+}
+function updateUplink(dt, active) {
+  const u = RG.uplink;
+  if (!u) return;
+  RG.inUplink = active && !RG.exitOpen && Math.hypot(player.x - u.x, player.z - u.z) < UPLINK_R;
+  if (RG.inUplink) {
+    addCharge(dt / u.need);
+    RG.waveT -= dt;
+    if (RG.waveT <= 0) { RG.waveT = Math.max(2.6, 4.4 - 0.15 * RG.depth); spawnRaid(); }
+    if (Math.random() < 0.5) burst(u.x + rand(-3, 3), 0.3, u.z + rand(-3, 3), '#56e8ff', 1, 1, 0.3, { smoke: true, grow: -0.2 });
+    const tick = Math.floor(u.charge * 10);
+    if (tick > u.tick) { u.tick = tick; audio.tone('square', 440 + tick * 70, 440 + tick * 70, 0.07, 0.06); }
+  }
+  const c = RG.exitOpen ? 1 : u.charge, col = RG.exitOpen ? '#6cf0a0' : '#56e8ff';
+  upFill.scale.setScalar(Math.max(0.01, UPLINK_R * c));
+  upRing.material.opacity = RG.inUplink ? 0.6 + Math.sin(G.stateTime * 10) * 0.3 : 0.75;
+  upGem.rotation.y += dt * (1.5 + c * 8);
+  upGem.position.y = 3.2 + Math.sin(G.stateTime * 3) * 0.2;
+  const h = 1 + c * 26;
+  upBeam.scale.set(1, h, 1);
+  upBeam.position.y = 3.2 + h / 2;
+  if (u.col !== col) { u.col = col; for (const mm of [upRing, upFill, upGem, upBeam]) mm.material.color.set(col); }
 }
 function updateGate() {
   gateField.material.opacity = (RG.exitOpen ? 0.55 : 0.32) + Math.sin(G.stateTime * 6) * 0.12;
@@ -3334,7 +3536,14 @@ function mazeClear() {
   for (const b of ebs) b.dead = true;
   const healed = RG.hearts < RG.st.maxHearts;
   if (healed) RG.hearts++;
-  banner('MAZE CLEAR', healed ? '+1 ♥ REPAIRED' : `${RG.kills} KILLS SO FAR`, 1.5);
+  RG.rerolls = Math.min(3, RG.rerolls + 1);
+  // Beating par pays experience, so pushing on is worth it.
+  const par = 50 + 12 * RG.depth;
+  const fast = Math.max(0, Math.round((par - RG.mazeTime) * 0.4 * (1 + 0.25 * (RG.depth - 1))));
+  if (fast) gainXp(fast);
+  const parts = [healed ? '+1 ♥ REPAIRED' : `${RG.kills} KILLS`];
+  if (fast) parts.push(`FAST CLEAR +${fast} XP`);
+  banner('MAZE CLEAR', parts.join(' · '), 1.6);
   audio.clear();
 }
 function rogueDeath() {
@@ -3355,7 +3564,8 @@ function rogueDeath() {
 // ============================================================
 // Bullet Rogue: level-up cards
 // ============================================================
-let luChoices = [], luKind = 'level', luOpenAt = 0;
+let luChoices = [], luKind = 'level', luOpenAt = 0, luNewSlot = false;
+const skillMax = (id) => SKILLS[id].max ?? Infinity;
 function takeWeighted(list, also) {
   let total = 0;
   for (const c of list) total += c.w;
@@ -3375,7 +3585,7 @@ function equipOptions() {
   return out;
 }
 function rollChoices(kind) {
-  const skills = Object.keys(SKILLS).filter((id) => RG.skills[id] < SKILLS[id].max).map((id) => ({ kind: 'skill', id, w: 10 }));
+  const skills = Object.keys(SKILLS).filter((id) => RG.skills[id] < skillMax(id)).map((id) => ({ kind: 'skill', id, w: 10 }));
   const gear = equipOptions(), out = [];
   if (kind === 'crate') {
     while (out.length < 3 && gear.length) out.push(takeWeighted(gear));
@@ -3389,44 +3599,71 @@ function rollChoices(kind) {
   while (out.length < 3) out.push(out.length % 2 ? { kind: 'repair' } : { kind: 'cache' });
   return out;
 }
+// What a card says: the step it gives, and what changes from now to after.
 function cardInfo(c) {
   if (c.kind === 'skill') {
-    const s = SKILLS[c.id], r = RG.skills[c.id] + 1;
-    return { ico: s.ico, color: s.color, tag: 'SKILL', name: s.name, desc: typeof s.desc === 'function' ? s.desc(r) : s.desc, rank: r, max: s.max };
+    const s = SKILLS[c.id], r = RG.skills[c.id] + 1, max = skillMax(c.id);
+    return {
+      icon: c.id, color: s.color, tag: r === 1 ? 'NEW SKILL' : `SKILL · RANK ${r}`, name: s.name, desc: s.desc,
+      change: `${r > 1 ? s.fx(r - 1) : 'none'} → ${s.fx(r)}`, rank: r, max: Number.isFinite(max) ? max : 0,
+    };
   }
   if (c.kind === 'equip') {
     const q = EQUIP[c.id], own = RG.equip.find((e) => e.id === c.id), lvl = own ? own.lvl + 1 : 1;
-    return { ico: q.ico, color: q.color, tag: own ? 'GEAR UPGRADE' : 'NEW GEAR', name: q.name, desc: q.desc[lvl - 1], rank: lvl, max: 3 };
+    return {
+      icon: c.id, color: q.color, tag: own ? `GEAR UPGRADE · LV ${lvl}${lvl === 3 ? ' MAX' : ''}` : 'NEW GEAR', name: q.name, desc: q.desc[lvl - 1],
+      change: own ? `now: ${q.desc[lvl - 2]}` : `takes a gear slot (${RG.equip.length + 1} of ${RG.slots})`, rank: lvl, max: 3,
+    };
   }
-  if (c.kind === 'repair') return { ico: '+', color: '#6cf0a0', tag: 'SUPPLIES', name: 'Repair Kit', desc: 'Repair 2 hearts', rank: 0, max: 0 };
-  return { ico: 'X', color: '#ffe14f', tag: 'SUPPLIES', name: 'Salvage Cache', desc: 'Half a level of experience', rank: 0, max: 0 };
+  if (c.kind === 'repair') return { icon: 'regen', color: '#6cf0a0', tag: 'SUPPLIES', name: 'Repair Kit', desc: 'Repair 2 hearts', change: '', rank: 0, max: 0 };
+  return { icon: 'salvage', color: '#ffe14f', tag: 'SUPPLIES', name: 'Salvage Cache', desc: 'Half a level of experience', change: '', rank: 0, max: 0 };
 }
-function openLevelUp(kind, newSlot = false) {
-  luKind = kind;
-  luChoices = rollChoices(kind);
-  $('luTitle').textContent = kind === 'crate' ? 'GEAR CRATE' : `LEVEL ${RG.level - RG.pending + 1}`;
-  $('luSub').textContent = kind === 'crate'
-    ? (newSlot ? `NEW GEAR SLOT · ${RG.equip.length}/${RG.slots} USED` : 'CHOOSE YOUR GEAR')
-    : `CHOOSE ONE · GEAR SLOTS ${RG.equip.length}/${RG.slots}`;
+function renderCards() {
   const box = $('cards');
   box.textContent = '';
   luChoices.forEach((c, i) => {
     const info = cardInfo(c), b = document.createElement('button');
     b.className = 'upg';
     b.dataset.i = i;
-    const add = (tag, cls, text) => { const el = document.createElement(tag); el.className = cls; el.textContent = text; b.appendChild(el); return el; };
-    add('span', 'ico', info.ico).style.background = info.color;
-    add('span', 'tag', `${i + 1} · ${info.tag}`);
-    add('span', 'nm', info.name);
-    add('span', 'ds', info.desc);
-    if (info.max) add('span', 'pips', '■'.repeat(info.rank) + '□'.repeat(info.max - info.rank));
+    const add = (cls, text) => { const el = document.createElement('span'); el.className = cls; el.textContent = text; b.appendChild(el); return el; };
+    const ico = add('ico', '');
+    ico.style.background = info.color;
+    ico.innerHTML = iconSvg(info.icon);
+    add('tag', `${i + 1} · ${info.tag}`);
+    add('nm', info.name);
+    add('ds', info.desc);
+    if (info.change) add('chg', info.change);
+    if (info.max && info.max <= 6) add('pips', '■'.repeat(info.rank) + '□'.repeat(info.max - info.rank));
     box.appendChild(b);
   });
+  const rr = $('btnReroll');
+  rr.hidden = RG.rerolls <= 0;
+  rr.textContent = `REROLL · ${RG.rerolls} LEFT`;
+}
+function openLevelUp(kind, newSlot = false) {
+  luKind = kind;
+  luNewSlot = newSlot;
+  luChoices = rollChoices(kind);
+  $('luTitle').textContent = kind === 'crate' ? 'GEAR CRATE' : `LEVEL ${RG.level - RG.pending + 1}`;
+  $('luSub').textContent = kind === 'crate'
+    ? (newSlot ? `NEW GEAR SLOT · ${RG.equip.length} OF ${RG.slots} USED` : `CHOOSE YOUR GEAR · ${RG.equip.length} OF ${RG.slots} SLOTS USED`)
+    : `CHOOSE ONE · GEAR SLOTS ${RG.equip.length} OF ${RG.slots}`;
+  renderCards();
+  renderStrip($('luBuild'), false);
+  hideBanner();
+  bannerTimer = 0;
   ui.levelup.hidden = false;
   G.state = 'levelup';
   luOpenAt = performance.now();
   releaseAllPointers();
   audio.levelup();
+}
+function rerollCards() {
+  if (G.state !== 'levelup' || RG.rerolls <= 0 || performance.now() - luOpenAt < 300) return;
+  RG.rerolls--;
+  luChoices = rollChoices(luKind);
+  renderCards();
+  audio.pickup();
 }
 function chooseUpgrade(i) {
   if (G.state !== 'levelup' || performance.now() - luOpenAt < 450) return;   // ignore taps carried over from play
@@ -3446,6 +3683,7 @@ function chooseUpgrade(i) {
   popup(info.name.toUpperCase(), player.x, 4, player.z, 'big');
   ui.levelup.hidden = true;
   G.state = 'play';
+  input.dash = false;
   if (luKind === 'level') RG.pending--;
   flash(player.x, 1.4, player.z, 4, info.color, 0.35);
 }
@@ -3453,6 +3691,63 @@ $('cards').addEventListener('click', (e) => {
   const b = e.target.closest('button.upg');
   if (b) chooseUpgrade(+b.dataset.i);
 });
+$('btnReroll').addEventListener('click', rerollCards);
+
+// Everything the tank carries, gear first.
+function buildRows(skillsOnly = false) {
+  const rows = [];
+  if (!skillsOnly) {
+    for (const e of RG.equip) {
+      const q = EQUIP[e.id];
+      rows.push({ id: e.id, color: q.color, name: q.name, rank: `LV ${e.lvl}${e.lvl === 3 ? ' MAX' : ''}`, short: `L${e.lvl}`, fx: q.desc[e.lvl - 1] });
+    }
+  }
+  for (const id of Object.keys(SKILLS)) {
+    const r = RG.skills[id];
+    if (r) rows.push({ id, color: SKILLS[id].color, name: SKILLS[id].name, rank: `RANK ${r}`, short: String(r), fx: SKILLS[id].fx(r) });
+  }
+  return rows;
+}
+function renderStrip(el, skillsOnly) {
+  el.textContent = '';
+  for (const r of buildRows(skillsOnly)) {
+    const chip = document.createElement('span'), ico = document.createElement('span'), t = document.createElement('b');
+    chip.className = 'chip-ico';
+    chip.title = `${r.name} ${r.rank}: ${r.fx}`;
+    ico.className = 'ico';
+    ico.style.background = r.color;
+    ico.innerHTML = iconSvg(r.id);
+    t.textContent = r.short;
+    chip.append(ico, t);
+    el.appendChild(chip);
+  }
+}
+// Pause screen: the full loadout with what each piece is doing right now.
+function renderLoadout() {
+  const st = RG.st;
+  $('loStats').textContent = `${st.fireRate.toFixed(1)} SHOTS/S · ${Math.round(st.damage)} DAMAGE · ${st.shots} PER VOLLEY · ${Math.round(st.crit * 100)}% CRIT · SPEED ${st.moveSpeed.toFixed(1)}`;
+  const el = $('loadout'), rows = buildRows();
+  el.textContent = '';
+  if (!rows.length) {
+    const p = document.createElement('p');
+    p.className = 'lo-empty';
+    p.textContent = 'No upgrades yet. Collect experience orbs to level up.';
+    el.appendChild(p);
+    return;
+  }
+  for (const r of rows) {
+    const row = document.createElement('div');
+    row.className = 'lo-row';
+    const add = (cls, text) => { const s2 = document.createElement('span'); s2.className = cls; s2.textContent = text; row.appendChild(s2); return s2; };
+    const ico = add('ico', '');
+    ico.style.background = r.color;
+    ico.innerHTML = iconSvg(r.id);
+    add('nm', r.name);
+    add('rk', r.rank);
+    add('fx', r.fx);
+    el.appendChild(row);
+  }
+}
 
 // ============================================================
 // Bullet Rogue: frame
@@ -3465,7 +3760,11 @@ function updateRogue(dt) {
     audio.beep(true);
   }
   const active = G.state === 'play';
-  if (active) RG.time += dt;
+  if (active) {
+    RG.time += dt;
+    RG.mazeTime += dt;
+    if (RG.streakT > 0 && (RG.streakT -= dt) <= 0) RG.streak = 0;
+  }
   updateRoguePlayer(dt, active);
   const c = cellAt(player.x, player.z);
   if (c !== RG.flowCell) { RG.flowCell = c; RG.flow = mazeDist(RG.maze, c); }
@@ -3475,6 +3774,7 @@ function updateRogue(dt) {
   updateOrbs(dt, active);
   updateRoguePickups(dt);
   updateEquipment(dt, active);
+  updateUplink(dt, active);
   updateGate();
   renderRogue(dt);
   updateRogueCamera(dt);
@@ -3552,9 +3852,9 @@ function renderRogue(dt) {
   for (const e of RG.enemies) {
     if (!e.bar) continue;
     const ratio = clamp(e.hp / e.maxHp, 0, 1);
-    e.bar.visible = e.kind === 'core' || ratio < 1;
+    e.bar.visible = e.kind === 'core' || e.elite || ratio < 1;
     if (!e.bar.visible) continue;
-    e.bar.position.set(e.x, e.def.bar, e.z);
+    e.bar.position.set(e.x, e.def.bar || 3.4, e.z);
     e.bar.quaternion.copy(camera.quaternion);
     const { fg, w } = e.bar.userData;
     fg.scale.x = Math.max(0.001, w * ratio);
@@ -3589,23 +3889,19 @@ function updateRogueCamera(dt) {
   if (Math.abs(camera.fov - baseFov) > 0.05) { camera.fov += (baseFov - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
 }
 
-// Ground arrow along the maze: to the exit once it opens, or to the nearest core after a quiet spell.
+// Ground arrow along the maze: to the uplink when things go quiet, to the exit once it opens.
 function updateRogueGuide() {
   aimLine.visible = false;
-  let field = null, color = '#6cf0a0';
+  let field = null, target = null, color = '#6cf0a0';
   if (G.state === 'play') {
-    if (RG.exitOpen) field = RG.exitFlow;
-    else if (RG.idle > 4) {
-      let bd = Infinity;
-      for (const e of RG.enemies) if (e.kind === 'core' && e.flow && e.flow[RG.flowCell] < bd) { bd = e.flow[RG.flowCell]; field = e.flow; }
-      color = '#ff8a2a';
-    }
+    if (RG.exitOpen) { field = RG.exitFlow; target = { x: RG.exitX, z: RG.exitZ }; }
+    else if (RG.uplink && !RG.inUplink && RG.idle > 1.5) { field = RG.uplink.flow; target = RG.uplink; color = '#56e8ff'; }
   }
   guide.visible = !!field;
   if (!field) return;
   const next = stepToward(field, RG.flowCell);
-  const t = next < 0 ? (RG.exitOpen ? { x: RG.exitX, z: RG.exitZ } : null) : cellCenter(RG.maze, next);
-  if (!t || Math.hypot(t.x - player.x, t.z - player.z) < 2) { guide.visible = false; return; }
+  const t = next < 0 ? target : cellCenter(RG.maze, next);
+  if (Math.hypot(t.x - player.x, t.z - player.z) < 2) { guide.visible = false; return; }
   const ang = Math.atan2(t.x - player.x, t.z - player.z);
   guide.material.color.set(color);
   guide.position.set(player.x + Math.sin(ang) * 4.4, 0.12, player.z + Math.cos(ang) * 4.4);
@@ -3618,21 +3914,40 @@ function updateRogueGuide() {
 // ============================================================
 const rui = {
   hearts: $('heartsFull'), heartsEmpty: $('heartsEmpty'), armor: $('armorPips'), level: $('rLevel'), xp: $('rXp'),
-  depth: $('rDepth'), goal: $('rGoal'), kills: $('rKills'), slots: $('slots'), boss: $('bossBar'), bossFill: $('bossFill'), dash: $('dashBtn'),
+  depth: $('rDepth'), goal: $('rGoal'), kills: $('rKills'), streak: $('rStreak'), streakX: $('rStreakX'), slots: $('slots'), skills: $('skillRow'),
+  bar: $('bossBar'), barFill: $('bossFill'), dash: $('dashBtn'),
 };
 function updateRogueHud() {
   if (ui.hud.hidden) return;
-  const st = RG.st;
+  const st = RG.st, u = RG.uplink;
   setText(rui.hearts, 'rh', '♥'.repeat(Math.max(0, RG.hearts)));
   setText(rui.heartsEmpty, 're', '♥'.repeat(Math.max(0, st.maxHearts - RG.hearts)));
   setText(rui.armor, 'ra', '◆'.repeat(RG.armor));
   setText(rui.level, 'rl', String(RG.level));
   rui.xp.style.transform = `scaleX(${clamp(RG.xp / RG.xpNext, 0, 1).toFixed(3)})`;
   setText(rui.depth, 'rd', `MAZE ${RG.depth}`);
-  const goal = RG.exitOpen ? 'EXIT OPEN' : RG.boss ? 'DESTROY THE FORTRESS' : `CORES ${RG.coreCount - RG.coresLeft}/${RG.coreCount}`;
+  const pct = u ? Math.floor(u.charge * 100) : 0;
+  const goal = RG.exitOpen ? 'EXIT OPEN' : RG.boss ? 'DESTROY THE FORTRESS' : `${RG.inUplink ? 'CHARGING' : 'UPLINK'} ${pct}%`;
   setText(rui.goal, 'rg', goal);
   if (hudCache.rgOpen !== RG.exitOpen) { hudCache.rgOpen = RG.exitOpen; rui.goal.classList.toggle('open', RG.exitOpen); }
   setText(rui.kills, 'rk', String(RG.kills));
+  const streaking = RG.streak >= 3;
+  if (streaking) {
+    setText(rui.streak, 'rs', `STREAK ${RG.streak}`);
+    setText(rui.streakX, 'rsx', `XP ×${streakMult().toFixed(2)}`);
+  }
+  if (rui.streak.hidden === streaking) rui.streak.hidden = rui.streakX.hidden = !streaking;
+
+  // Goal bar: the boss's armour, or the uplink's charge.
+  const boss = RG.boss && RG.boss.alive ? RG.boss : null;
+  const showBar = !!boss || (!!u && !RG.exitOpen);
+  if (rui.bar.hidden === showBar) rui.bar.hidden = !showBar;
+  if (showBar) {
+    rui.barFill.style.transform = `scaleX(${clamp(boss ? boss.hp / boss.maxHp : u.charge, 0, 1).toFixed(3)})`;
+    const col = boss ? 'var(--violet)' : 'var(--steel-2)';
+    if (hudCache.barCol !== col) { hudCache.barCol = col; rui.barFill.style.background = col; }
+  }
+
   const sig = RG.slots + '|' + RG.equip.map((e) => e.id + e.lvl).join(',');
   if (sig !== RG.slotSig) {
     RG.slotSig = sig;
@@ -3643,8 +3958,8 @@ function updateRogueHud() {
       if (e) {
         const q = EQUIP[e.id];
         d.style.background = q.color;
-        d.textContent = q.ico;
-        d.title = `${q.name} ${e.lvl}`;
+        d.title = `${q.name} LV ${e.lvl}: ${q.desc[e.lvl - 1]}`;
+        d.innerHTML = iconSvg(e.id);
         const pips = document.createElement('i');
         pips.textContent = '•'.repeat(e.lvl);
         d.appendChild(pips);
@@ -3652,9 +3967,9 @@ function updateRogueHud() {
       rui.slots.appendChild(d);
     }
   }
-  const boss = RG.boss && RG.boss.alive ? RG.boss : null;
-  if (rui.boss.hidden === !!boss) rui.boss.hidden = !boss;
-  if (boss) rui.bossFill.style.transform = `scaleX(${clamp(boss.hp / boss.maxHp, 0, 1).toFixed(3)})`;
+  const skillSig = Object.values(RG.skills).join(',');
+  if (skillSig !== RG.stripSig) { RG.stripSig = skillSig; renderStrip(rui.skills, true); }
+
   const cd = (1 - clamp(RG.dashCd / st.dashCd, 0, 1)).toFixed(2);
   if (hudCache.dash !== cd) { hudCache.dash = cd; rui.dash.style.setProperty('--cd', cd); rui.dash.classList.toggle('ready', cd === '1.00'); }
   drawMazeMap();
@@ -3670,6 +3985,13 @@ function drawMazeMap() {
   ctx.setTransform(-s, 0, 0, -s, size / 2, size / 2);
   ctx.fillStyle = G.palette.wall;
   for (const w of walls) ctx.fillRect(w.x0, w.z0, w.x1 - w.x0, w.z1 - w.z0);
+  const u = RG.uplink;
+  if (u && !RG.exitOpen) {
+    ctx.fillStyle = 'rgba(86, 232, 255, 0.25)';
+    ctx.beginPath(); ctx.arc(u.x, u.z, UPLINK_R, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#56e8ff';
+    ctx.beginPath(); ctx.moveTo(u.x, u.z); ctx.arc(u.x, u.z, UPLINK_R, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0.02, u.charge)); ctx.closePath(); ctx.fill();
+  }
   ctx.fillStyle = RG.exitOpen ? '#6cf0a0' : '#ff3b5c';
   ctx.globalAlpha = RG.exitOpen ? 0.6 + Math.sin(G.stateTime * 6) * 0.4 : 0.7;
   ctx.fillRect(RG.exitX - 3, RG.exitZ - 3, 6, 6);
@@ -3679,12 +4001,15 @@ function drawMazeMap() {
       ctx.fillStyle = e.kind === 'boss' ? '#b86cff' : '#ff3b5c';
       ctx.beginPath(); ctx.arc(e.x, e.z, e.kind === 'boss' ? 4.5 : 3.2 + Math.sin(G.stateTime * 5) * 0.6, 0, TAU); ctx.fill();
     } else if (e.dist < 34) {
-      ctx.fillStyle = e.kind === 'sentry' || e.kind === 'spinner' ? '#ffa53a' : '#ff6b8a';
+      ctx.fillStyle = e.elite ? '#f2c53d' : e.kind === 'sentry' || e.kind === 'spinner' ? '#ffa53a' : '#ff6b8a';
       ctx.fillRect(e.x - 1.2, e.z - 1.2, 2.4, 2.4);
     }
   }
-  ctx.fillStyle = '#ffffff';
-  for (const k of RG.pickups) ctx.fillRect(k.x - 1.5, k.z - 1.5, 3, 3);
+  for (const k of RG.pickups) {
+    ctx.fillStyle = k.type === 'cache' || k.type === 'crate' ? BOOSTS[k.type].color : '#ffffff';
+    const r = k.type === 'cache' || k.type === 'crate' ? 2.4 : 1.5;
+    ctx.fillRect(k.x - r, k.z - r, r * 2, r * 2);
+  }
   const p = player, fx = Math.sin(p.a), fz = Math.cos(p.a);
   ctx.fillStyle = '#f2c53d';
   ctx.beginPath();
@@ -3699,11 +4024,8 @@ function showRogueOver() {
   const best = store.get('rogueBest', { depth: 0, level: 0 });
   const isBest = RG.depth > best.depth || (RG.depth === best.depth && RG.level > best.level);
   if (isBest) store.set('rogueBest', { depth: RG.depth, level: RG.level });
-  const chips = [
-    ...RG.equip.map((e) => ({ text: `${EQUIP[e.id].name} ${e.lvl}`, color: EQUIP[e.id].color })),
-    ...Object.keys(SKILLS).filter((id) => RG.skills[id]).map((id) => ({ text: `${SKILLS[id].name} ${RG.skills[id]}`, color: SKILLS[id].color })),
-  ];
-  showOver('DESTROYED', [['MAZE', RG.depth], ['LEVEL', RG.level], ['KILLS', RG.kills], ['TIME', fmtTime(RG.time)]],
+  const chips = buildRows().map((r) => ({ text: `${r.name} ${r.rank}`, color: r.color }));
+  showOver('DESTROYED', [['MAZE', RG.depth], ['LEVEL', RG.level], ['KILLS', RG.kills], ['TIME', fmtTime(RG.time)], ['BEST STREAK', RG.bestStreak], ['GRAZES', RG.grazes]],
     isBest ? 'NEW DEEPEST RUN!' : `DEEPEST <b>MAZE ${best.depth}</b>`, isBest, chips);
 }
 

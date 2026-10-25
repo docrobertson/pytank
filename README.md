@@ -35,13 +35,15 @@ Chase camera behind and above your tank. Destroy every target in the wave before
 
 A high, north-up camera so you can see shots coming from every side. Your turret aims and fires by itself; you drive, dodge and dash.
 
-- **Mazes:** each level is a generated maze with an entrance and an exit gate. Destroy the power cores to open the exit. Cores keep spawning enemies until they go down. Every fifth maze is a boss fight.
-- **Enemies:** crawlers rush you, gunner tanks fire aimed fans, sentries fire rings, spinners spray spirals, heavies lob shells that burst. The deeper you go, the thicker the bullet storm.
+- **Mazes and the uplink:** each level is a generated maze with an entrance and an exit gate. Stand in the blue uplink zone to charge the gate; holding it draws raiders, so it plays like a short last stand. Power cores are optional: each one keeps spawning enemies, and destroying it charges the uplink by 35%. Every fifth maze is a boss fight instead. Clearing a maze quickly pays bonus experience, and every orb left on the map flies to you when the exit opens.
+- **Enemies:** crawlers rush you, gunner tanks fire aimed fans, sentries fire rings, spinners spray spirals, heavies lob shells that burst. Gold elites have triple armour and drop triple experience plus a pickup.
 - **Bullet hell rules:** your hitbox is much smaller than your tank. Near misses ("grazes") pay a little experience. Dashing makes you briefly untouchable and rams crawlers.
-- **Experience and levels:** enemies drop experience orbs. Each level offers three cards.
-- **Skills** are stackable numbers: Autoloader (fire rate), Heavy Shells (damage), Engine Tune (speed), Long Barrel (shell speed and range), Gun Sight (critical hits), Salvager (more experience), Tractor Beam (pickup range), Hull Plating (max hearts), Nitro (dash recharge) and Field Repair (heart regeneration).
-- **Gear** changes how you fight and fills one of three slots (a fourth unlocks from the first boss). Each piece upgrades to level 3: Multi-Cannon, Ricochet Rounds, Seeker Shells, Piercing Rounds, Flak Shells, Reactive Armor, Escort Drones and EMP Pulse (wipes nearby shots).
-- **Pickups:** letter cubes in dead ends and from cores are permanent: each one adds a skill rank or repairs a heart. Bosses drop a gear crate.
+- **Kill streaks:** kills less than two seconds apart build a streak that multiplies experience, up to x1.6.
+- **Level-up cards:** pick one of three. You get a reroll per maze cleared (up to 3 banked). Cards show what you have now and what you'll have after.
+- **Skills** are simple steps, most with no cap: Autoloader (+10% fire rate), Heavy Shells (+10% damage), Long Barrel (shell speed and range), Engine Tune (speed), Salvager (experience), Tractor Beam (pickup range), Nitro (dash recharge), Field Repair (heart regeneration) and Battering Ram (dashes damage what they plow through). Gun Sight (crits) caps at 100% and Hull Plating at 10 hearts.
+- **Gear** changes how you fight and fills one of three slots (a fourth comes from the first boss). Each piece upgrades to level 3: Multi-Cannon, Ricochet Rounds, Seeker Shells, Piercing Rounds, Flak Shells, Reactive Armor, Escort Drones and EMP Pulse (wipes nearby shots).
+- **Pickups:** icon cubes in dead ends and from cores are permanent: each adds a skill rank or repairs a heart. From maze 2 a blue supply crate hides in the deepest dead end with a choice of gear; bosses drop a gold crate.
+- **Seeing your build:** gear sits in the slots under your hearts and skills show as a row of icons with ranks on wider screens. Pause to see the full loadout with what each piece does right now.
 
 ## Controls
 
@@ -50,7 +52,7 @@ A high, north-up camera so you can see shots coming from every side. Your turret
 | Drive | W A S D or arrow keys | Put a thumb down (left half in Arcade); the stick appears under it and stays put |
 | Arcade: fire | Space (hold for auto-fire) | Hold anywhere on the right half |
 | Rogue: dash | Space or Shift | Tap a second finger, or the Dash button |
-| Rogue: pick a card | 1, 2, 3 or click | Tap |
+| Rogue: pick a card | 1, 2, 3 or click (R rerolls) | Tap |
 | Pause | P or Esc | II button |
 | Sound | M (music + FX → FX only → off) | ♪ button |
 

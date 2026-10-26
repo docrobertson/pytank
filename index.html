@@ -371,7 +371,7 @@
       </div>
     </div>
     <div class="cell right">
-      <div class="plate wave-row only-arcade"><span>WAVE <b id="wave">1</b></span><span><b id="left">6</b> LEFT</span><span id="shotsBox">SHOTS <b id="shots">0/12</b></span></div>
+      <div class="plate wave-row only-arcade"><span><span id="waveLbl">WAVE</span> <b id="wave">1</b></span><span><b id="left">6</b> LEFT</span><span id="shotsBox">SHOTS <b id="shots">0/12</b></span></div>
       <div class="plate wave-row only-rogue"><span>KILLS <b id="rKills">0</b></span><span id="rStreak" class="streak" hidden></span><span id="rStreakX" class="streak" hidden></span></div>
       <canvas id="radar" width="112" height="112" aria-label="Map"></canvas>
     </div>
@@ -834,14 +834,14 @@ function clearArena() {
   clearFx();
 }
 
-function buildArena(w) {
+function buildArena(w, layout = null, palette = null) {
   clearArena();
   clearRogue();
 
-  G.palette = PALETTES[(w - 1) % PALETTES.length];
+  G.palette = PALETTES[palette ?? (w - 1) % PALETTES.length];
   applyPalette(G.palette);
   const rects = [];
-  const li = w <= LAYOUTS.length ? w - 1 : 1 + Math.floor(Math.random() * (LAYOUTS.length - 1));
+  const li = layout ?? (w <= LAYOUTS.length ? w - 1 : 1 + Math.floor(Math.random() * (LAYOUTS.length - 1)));
   LAYOUTS[li](rects);
   rects.push([0, A + 2, 2 * A + 8, 4], [0, -A - 2, 2 * A + 8, 4], [A + 2, 0, 4, 2 * A], [-A - 2, 0, 4, 2 * A]);
   for (const r of rects) addWall(...r);
@@ -1535,7 +1535,7 @@ function readInput() {
 // ============================================================
 const ui = {
   hud: $('hud'), title: $('title'), pause: $('pause'), over: $('over'), touch: touchEl,
-  score: $('score'), timer: $('timer'), wave: $('wave'), left: $('left'),
+  score: $('score'), timer: $('timer'), wave: $('wave'), waveLbl: $('waveLbl'), left: $('left'),
   combo: $('combo'), comboText: $('comboText'), comboBar: $('comboBar'), shots: $('shots'), shotsBox: $('shotsBox'),
   powers: $('powers'), perks: $('perkRow'),
   banner: $('banner'), bannerBig: $('bannerBig'), bannerSmall: $('bannerSmall'),
@@ -1604,6 +1604,8 @@ function resetArcadeRun() {
   G.perks = Object.fromEntries(Object.keys(PERKS).map((k) => [k, 0]));
   G.powers = {};
   G.shield = 0;
+  G.rush = false;
+  G.rushes = 0;
   G.perkSig = '';
   arcadeStats();
 }
@@ -1626,6 +1628,7 @@ const powerLvl = (id) => (G.powers[id] ? G.powers[id].lvl : 0);
 
 function startWave(w) {
   G.wave = w;
+  G.rush = false;
   G.cfg = waveConfig(w);
   buildArena(w);
   spawnWave(G.cfg, false);
@@ -1710,6 +1713,46 @@ function resetPlayer() {
   player.mesh.visible = true;
   camYaw = 0;
   snapCam = true;
+}
+
+// Target Rush: a bonus stage after every fourth wave. A packed, open arena, double points, Rapid Fire and
+// Spread Shot on the house, and no way to lose. Clear every target for a Perfect bonus.
+const RUSH_TIME = 15;
+function startRush() {
+  G.rush = true;
+  G.rushes++;
+  const base = waveConfig(G.wave);
+  G.cfg = { ...base, crates: Math.min(20 + 2 * G.rushes, 28), barrels: 6, drones: Math.min(2 + G.rushes, 6), tanks: 0, tankShoot: false, bonus: false, time: RUSH_TIME };
+  G.cfg.total = G.cfg.crates + G.cfg.barrels + G.cfg.drones;
+  buildArena(G.wave, 0, 3);   // the most open layout, in neon
+  spawnWave(G.cfg, false);
+  resetPlayer();
+  fadeIn();
+  G.timeLeft = RUSH_TIME;
+  G.bonusSpawned = true;
+  G.lastSecond = 99;
+  G.shots = 0;
+  G.waveTargets = G.remaining;
+  G.comboTimer = 0;
+  G.waveHits = 0;
+  for (const id of ['rapid', 'spread']) {
+    const pw = G.powers[id];
+    G.powers[id] = { lvl: Math.max(2, pw ? pw.lvl : 0), t: Math.max(RUSH_TIME, pw ? pw.t : 0), dur: Math.max(RUSH_TIME, pw ? pw.dur : 0) };
+  }
+  setState('countdown');
+  ui.touch.hidden = !isTouch;
+  banner('TARGET RUSH', `BONUS STAGE · DOUBLE POINTS · ${G.remaining} TARGETS · ${RUSH_TIME}s`, 1.6);
+  audio.bonus();
+}
+function endRush(perfect) {
+  setState('clear');
+  const hit = G.waveTargets - Math.max(0, G.remaining);
+  const bonus = perfect ? (2000 + Math.ceil(G.timeLeft) * 200) * G.rushes : 0;
+  G.score += bonus;
+  banner(perfect ? 'PERFECT RUSH!' : 'RUSH OVER', perfect ? `ALL ${hit} TARGETS · +${bonus.toLocaleString()}` : `${hit} OF ${G.waveTargets} TARGETS`, 2.1);
+  if (perfect) popup('PERFECT!', player.x, 5, player.z, 'big');
+  audio.clear();
+  for (const t of targets) if (t.alive) vanish(t);
 }
 
 function waveClear() {
@@ -2003,7 +2046,7 @@ function destroyTarget(t, opts = {}) {
     G.comboTimer = G.st.comboWindow;
     G.bestCombo = Math.max(G.bestCombo, G.combo);
     const mult = Math.min(G.combo, 8);
-    let pts = def.pts * mult, cls = '', sub = mult > 1 ? `COMBO x${mult}` : '';
+    let pts = def.pts * mult * (G.rush ? 2 : 1), cls = '', sub = mult > 1 ? `COMBO x${mult}` : '';
     if (opts.banked) { pts = Math.round(pts * 1.5); cls = 'bank'; sub = 'BANK SHOT' + (mult > 1 ? ` x${mult}` : ''); }
     else if (opts.chain) sub = 'CHAIN' + (mult > 1 ? ` x${mult}` : '');
     else if (opts.crushed) sub = 'CRUSHED' + (mult > 1 ? ` x${mult}` : '');
@@ -2024,7 +2067,11 @@ function destroyTarget(t, opts = {}) {
   if (t.type === 'barrel') explode(t);
   if (t.type !== 'bonus') {
     G.remaining--;
-    if (G.remaining <= 0 && G.state === 'play') waveClear();
+    if (G.remaining <= 0 && G.state === 'play') {
+      G.hitstop = Math.max(G.hitstop, 0.45);   // a beat of slow motion on the last target
+      addShake(0.5);
+      if (G.rush) endRush(true); else waveClear();
+    }
   }
 }
 
@@ -2376,7 +2423,7 @@ const PLAYER_HIT = 0.75;         // bullet-hell hitbox, far smaller than the hul
 const GRAZE_R = 2.4;             // near misses inside this radius pay a little experience
 const DASH_SLIP = 0.4;           // chance a shot that catches you mid-dash only grazes you
 const DRONE_HP = 2;              // shots an escort drone can catch before it breaks
-const DRONE_MAX = 8;
+const DRONE_MAX = 10;            // most drones the bay can ever hold
 const ENEMY_CAP = 60;
 const MAX_SLOTS = 4;
 const EB_MAX = 700, PB_MAX = 400, ORB_MAX = 300, MAZE_MAX = 400;
@@ -2404,7 +2451,7 @@ const EQUIP = {
   pierce: { name: 'Piercing Rounds', color: '#ff8a2a', desc: ['Shells punch through 1 enemy', 'Through 2 enemies', 'Through 3 enemies'] },
   flak:   { name: 'Flak Shells', color: '#ff4b3a', desc: ['Hits burst for 50% splash damage', 'Bigger bursts, 70% splash', 'Huge bursts, 90% splash'] },
   armor:  { name: 'Reactive Armor', color: '#6cf0a0', desc: ['Blocks one hit, recharges in 10 s', 'Recharges in 7 s', 'Holds 2 charges, 5 s recharge'] },
-  drones: { name: 'Escort Drones', color: '#43e0d6', desc: ['4 drones circle you and ram enemies. Each catches 2 shots, then breaks', 'Holds 6 drones, refilled now', 'Holds 8 drones, refilled now'] },
+  drones: { name: 'Escort Drones', color: '#43e0d6', desc: ['2 drones circle you and ram enemies. Each catches 2 shots, then breaks'] },   // upgrades: see droneUpgrade()
   pulse:  { name: 'EMP Pulse', color: '#7d97ff', desc: ['Every 6 s a pulse wipes nearby shots and hurts enemies', 'Every 5 s, wider', 'Every 4 s, widest'] },
 };
 // Maze pickups: the arcade cubes, but each one is a permanent skill rank, a repair, or a gear crate.
@@ -2466,6 +2513,8 @@ const FM = {
   coreGlow: new THREE.MeshBasicMaterial({ color: '#ff3b5c' }),
   boss: lam('#6a3fd0'), bossDark: lam('#3c2390'),
   elite: lam('#f2c53d', { emissive: '#4a3300' }),
+  loot: lam('#ffe14f', { emissive: '#7a5a00', flatShading: true }),
+  lootRing: lam('#ffffff', { emissive: '#555555' }),
 };
 function shadowed(m) { m.castShadow = m.receiveShadow = true; return m; }
 
@@ -2518,6 +2567,18 @@ const FOES = {
       const glow = new THREE.Mesh(sphereGeo, FM.coreGlow); glow.scale.setScalar(0.85); glow.position.y = 3.9;
       const ring = shadowed(new THREE.Mesh(ringGeo, FM.base)); ring.rotation.x = Math.PI / 2; ring.position.y = 3.9;
       g.add(pylon, glow, ring); g.userData.body = glow; return g;
+    },
+  },
+  // Loot Runner: harmless and quick. It flees once it spots you and slips away after a while; catch it for loot.
+  runner: {
+    r: 1.0, hp: 32, xp: 14, speed: 8.5, scale: 1, bar: 2.2, debris: ['#ffe14f', '#c99a22', '#ffffff'],
+    make() {
+      const g = new THREE.Group(), body = new THREE.Group();
+      body.add(shadowed(new THREE.Mesh(crawlerGeo, FM.loot)));
+      const ring = shadowed(new THREE.Mesh(ringGeo, FM.lootRing)); ring.rotation.x = Math.PI / 2; ring.scale.setScalar(0.8);
+      body.add(ring);
+      body.position.y = 1.3;
+      g.add(body); g.userData.body = body; return g;
     },
   },
   boss: {
@@ -2686,8 +2747,8 @@ const RG = {
   depth: 1, level: 1, xp: 0, xpNext: xpNeed(1), pending: 0, hearts: 5, kills: 0, time: 0, grazes: 0,
   skills: {}, equip: [], slots: 3, st: null, rerolls: 1,
   armor: 0, armorT: 0, pulseT: 0, pulseAnim: 1, pulseR: 0, regenT: 0, droneA: 0, droneTick: 0,
-  drones: [],   // shots each escort drone can still catch; drones don't come back on their own
-  dashT: 0, dashCd: 0, dashX: 0, dashZ: 1, ramHit: new Set(),
+  drones: [], droneCap: 0,   // shots each escort drone can still catch, and how many the bay holds; drones don't come back on their own
+  dashT: 0, dashCd: 0, dashX: 0, dashZ: 1, ramHit: new Set(), overdrive: 0,
   turretA: 0, target: null, retarget: 0,
   maze: null, flow: null, flowCell: -1, exitCell: 0, exitX: 0, exitZ: 0, exitOpen: false, exitFlow: null,
   uplink: null, inUplink: false, waveT: 0, raids: 0, mazeTime: 0,
@@ -2721,7 +2782,6 @@ function rogueStats() {
     pierce: eq('pierce'),
     flakR: [0, 2.4, 3.1, 3.9][eq('flak')], flakDmg: [0, 0.5, 0.7, 0.9][eq('flak')],
     armorMax: eq('armor') === 3 ? 2 : eq('armor') ? 1 : 0, armorRecharge: [0, 10, 7, 5][eq('armor')],
-    droneCap: [0, 4, 6, 8][eq('drones')],
     pulseEvery: [0, 6, 5, 4][eq('pulse')], pulseR: [0, 7, 8.5, 10][eq('pulse')],
   };
 }
@@ -2730,7 +2790,7 @@ function startRogueRun() {
   Object.assign(RG, {
     depth: 1, level: 1, xp: 0, xpNext: xpNeed(1), pending: 0, kills: 0, time: 0, grazes: 0,
     skills: Object.fromEntries(Object.keys(SKILLS).map((k) => [k, 0])), equip: [], slots: 3, rerolls: 1,
-    armor: 0, armorT: 0, pulseT: 0, regenT: 0, dashCd: 0, streak: 0, streakT: 0, bestStreak: 0, slotSig: '', stripSig: '', drones: [],
+    armor: 0, armorT: 0, pulseT: 0, regenT: 0, dashCd: 0, streak: 0, streakT: 0, bestStreak: 0, slotSig: '', stripSig: '', drones: [], droneCap: 0,
   });
   rogueStats();
   RG.hearts = RG.st.maxHearts;
@@ -2921,7 +2981,7 @@ function buildMaze(depth) {
 
   resetPlayer();
   player.x = sc.x; player.z = sc.z - 2;
-  RG.turretA = 0; RG.target = null; RG.flowCell = -1; RG.dashT = 0; RG.idle = 0;
+  RG.turretA = 0; RG.target = null; RG.flowCell = -1; RG.dashT = 0; RG.idle = 0; RG.overdrive = 0;
   RG.pulseT = RG.st.pulseEvery;
   snapCam = true;
   fadeIn();
@@ -3010,6 +3070,11 @@ function populateMaze(m, dist, entry, exit, boss) {
     used.add(i);
     for (let n = 0, size = 3 + (Math.random() < 0.5 ? 1 : 0); n < size; n++) { const p = spot(i, 1); spawnFoe('crawler', p.x, p.z); }
   }
+  // A Loot Runner hides in some mazes from maze 2.
+  if (!boss && d >= 2 && Math.random() < 0.45) {
+    const i = pick(roam) ?? pick(free(3));
+    if (i !== null && i !== undefined) { used.add(i); const q = spot(i, 1); spawnFoe('runner', q.x, q.z); }
+  }
   // Supplies: a gear crate waits in the deepest dead end from maze 2, boosts in the others.
   const ends = all.filter((i) => openings(i) === 1 && i !== entry && i !== exit && !used.has(i));
   if (!boss && d >= 2 && ends.length) {
@@ -3063,6 +3128,26 @@ function seek(e, sp, dt, ux, uz) {
   const tx = t.x - e.x, tz = t.z - e.z, l = Math.hypot(tx, tz) || 1;
   moveFoe(e, tx / l, tz / l, sp, dt);
 }
+// Next cell uphill on a distance field: the neighbour farthest from where the field was measured.
+function stepAway(field, from) {
+  const m = RG.maze, x = from % m.n, z = Math.floor(from / m.n);
+  let best = from, bd = field[from];
+  for (const d of DIRS) {
+    if (m.cells[from] & d.bit || !m.inb(x + d.dx, z + d.dz)) continue;
+    const j = m.idx(x + d.dx, z + d.dz);
+    if (field[j] > bd) { bd = field[j]; best = j; }
+  }
+  return best;
+}
+const RUNNER_TIME = 12;   // seconds a spotted runner stays before it slips away
+function runnerEscape(e) {
+  e.alive = false;
+  scene.remove(e.mesh);
+  if (e.bar) scene.remove(e.bar);
+  flash(e.x, 1.5, e.z, 2.6, '#ffe14f', 0.35);
+  burst(e.x, 1.5, e.z, ['#ffe14f', '#ffffff'], 10, 6, 0.3);
+  popup('GOT AWAY', e.x, 3, e.z, 'bad');
+}
 function aimTurret(e, ux, uz) {
   const t = e.mesh.userData.turret;
   if (t) t.rotation.y = Math.atan2(ux, uz) - e.a;
@@ -3082,6 +3167,21 @@ const FOE_AI = {
     e.body.rotation.y += dt * 8;
     seek(e, Math.min(e.def.speed * (1 + 0.05 * (RG.depth - 1)), 11.5), dt, ux, uz);
     if (dist < e.r + 1.3 && player.invuln <= 0) { rogueHurt(); killEnemy(e, true); }
+  },
+  runner(e, dt, ux, uz, dist) {
+    e.body.rotation.y += dt * 9;
+    if (e.life === undefined) {
+      e.life = RUNNER_TIME;
+      popup('LOOT RUNNER!', e.x, 3.4, e.z, 'time', 'CATCH IT');
+      audio.bonus();
+    }
+    if ((e.life -= dt) <= 0) return runnerEscape(e);
+    // Along the maze to whichever neighbouring cell is farthest from you; straight away once cornered.
+    const here = cellAt(e.x, e.z), next = stepAway(RG.flow, here);
+    let dx = -ux, dz = -uz;
+    if (next !== here) { const c = cellCenter(RG.maze, next); dx = c.x - e.x; dz = c.z - e.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l; }
+    moveFoe(e, dx, dz, Math.min(e.def.speed * (1 + 0.03 * (RG.depth - 1)), 10.5), dt);
+    if (e.life < 3 && Math.random() < 0.3) burst(e.x, 1.3, e.z, '#ffe14f', 1, 2, 0.2);   // flickers before it goes
   },
   gunner(e, dt, ux, uz, dist) {
     const sp = e.def.speed * (1 + 0.03 * (RG.depth - 1));
@@ -3247,11 +3347,23 @@ function killEnemy(e, noXp = false) {
   RG.streak = RG.streakT > 0 ? RG.streak + 1 : 1;
   RG.streakT = 2;
   RG.bestStreak = Math.max(RG.bestStreak, RG.streak);
-  if (STREAKS[RG.streak]) { popup(STREAKS[RG.streak], player.x, 5, player.z, 'big'); audio.bonus(); }
+  const milestone = STREAKS[RG.streak] || (RG.streak > 50 && RG.streak % 25 === 0 ? 'OVERDRIVE!' : '');
+  if (milestone) {
+    RG.overdrive = Math.max(RG.overdrive, RG.streak >= 50 ? 8 : RG.streak >= 25 ? 6 : 4);
+    popup(milestone, player.x, 5, player.z, 'big', 'OVERDRIVE · +50% FIRE RATE');
+    flash(player.x, 1.4, player.z, 4, '#ffe14f', 0.3);
+    audio.bonus();
+  }
   dropXp(e.x, e.z, e.def.xp * (1 + 0.25 * (RG.depth - 1)) * (e.elite ? 3 : 1) * streakMult());
   if (e.elite) { popup('ELITE DOWN', e.x, 4, e.z, 'time'); dropBoost(e.x, e.z); }
   else if (e.kind === 'heavy' && Math.random() < 0.25) dropBoost(e.x, e.z);
   else if ((e.kind === 'sentry' || e.kind === 'spinner') && Math.random() < 0.06) dropBoost(e.x, e.z);
+  if (e.kind === 'runner') {
+    popup('LOOT!', e.x, 4, e.z, 'big', '+2 PICKUPS');
+    dropBoost(e.x - 0.8, e.z);
+    dropBoost(e.x + 0.8, e.z);
+    audio.bonus();
+  }
   if (e.kind === 'core') {
     RG.coresLeft--;
     popup('CORE DOWN', e.x, 5, e.z, 'big', '+35% UPLINK');
@@ -3271,6 +3383,8 @@ function killEnemy(e, noXp = false) {
 }
 // Kill streak: kills less than two seconds apart keep it alive and boost experience, up to x1.6.
 const STREAKS = { 10: 'RAMPAGE!', 25: 'UNSTOPPABLE!', 50: 'TANKAGEDDON!' };
+// Streak milestones (and every 25 kills past 50) kick in Overdrive: half again the fire rate for a few seconds.
+const OVERDRIVE_RATE = 1.5;
 const streakMult = () => 1 + Math.min(RG.streak, 40) * 0.015;
 
 // ============================================================
@@ -3402,7 +3516,7 @@ function leadAim(e) {
 
 function fireRogue() {
   const p = player, st = RG.st;
-  p.cooldown = 1 / st.fireRate;
+  p.cooldown = 1 / (st.fireRate * (RG.overdrive > 0 ? OVERDRIVE_RATE : 1));
   const n = st.shots, step = n > 1 ? Math.min(0.14, 0.42 / (n - 1)) : 0;
   for (let i = 0; i < n; i++) spawnPB(RG.turretA + (i - (n - 1) / 2) * step);
   flash(p.x + Math.sin(RG.turretA) * 2.3, 1.5, p.z + Math.cos(RG.turretA) * 2.3, 0.7, '#fff1b0', 0.08);
@@ -3531,6 +3645,24 @@ function updateEBullets(dt, active) {
   }
   ebs.length = w;
 }
+// Drones: lost or cracked ones are fixed before the bay grows. Upgrades and drone cubes fix up to two;
+// an upgrade only adds a drone to the bay when every drone is there and undamaged.
+const droneNeedsFix = () => RG.drones.length < RG.droneCap || RG.drones.some((h) => h < DRONE_HP);
+function fixDrones(n) {
+  let done = 0;
+  while (done < n && RG.drones.length < RG.droneCap) { RG.drones.push(DRONE_HP); done++; }   // rebuild lost drones first
+  for (let i = 0; i < RG.drones.length && done < n; i++) if (RG.drones[i] < DRONE_HP) { RG.drones[i] = DRONE_HP; done++; }
+  return done;
+}
+// What taking the Escort Drones card does right now.
+function droneUpgrade() {
+  if (!RG.droneCap) return { tag: 'NEW GEAR', desc: EQUIP.drones.desc[0], change: `takes a gear slot (${RG.equip.length + 1} of ${RG.slots})` };
+  if (droneNeedsFix()) {
+    const lost = RG.droneCap - RG.drones.length, cracked = RG.drones.filter((h) => h < DRONE_HP).length;
+    return { tag: 'DRONE REPAIR', desc: 'Rebuild or repair up to 2 drones', change: `now: ${lost ? `${lost} lost` : ''}${lost && cracked ? ', ' : ''}${cracked ? `${cracked} cracked` : ''} · no extra drone while any are down` };
+  }
+  return { tag: 'GEAR UPGRADE', desc: `+1 drone: the bay holds ${RG.droneCap + 1}`, change: `${RG.droneCap} → ${RG.droneCap + 1} drones` };
+}
 // An escort drone soaks the shot; the second one breaks it.
 function droneCatch(i, b) {
   const d = droneMeshes[i].position;
@@ -3630,7 +3762,7 @@ function updateOrbs(dt, active) {
 function dropBoost(x, z, type) {
   if (!type) {
     const pool = ['reload', 'damage', 'engine', 'repair'];
-    if (RG.st.droneCap && RG.drones.length < RG.st.droneCap) pool.push('drones', 'drones');
+    if (RG.droneCap && droneNeedsFix()) pool.push('drones', 'drones');
     type = pool[Math.floor(Math.random() * pool.length)];
   }
   const mesh = shadowed(new THREE.Mesh(boxGeo, boostMat[type]));
@@ -3666,9 +3798,8 @@ function collectBoost(k) {
     return;
   }
   if (k.type === 'drones') {
-    const add = Math.min(2, RG.st.droneCap - RG.drones.length);
-    for (let i = 0; i < add; i++) RG.drones.push(DRONE_HP);
-    if (add > 0) popup(`+${add} DRONE${add > 1 ? 'S' : ''}`, k.x, 3, k.z, 'time', `${RG.drones.length} OF ${RG.st.droneCap}`);
+    const fixed = RG.droneCap ? fixDrones(2) : 0;
+    if (fixed) popup(`${fixed} DRONE${fixed > 1 ? 'S' : ''} FIXED`, k.x, 3, k.z, 'time', `${RG.drones.length} OF ${RG.droneCap}`);
     else { gainXp(10); popup('+10 XP', k.x, 3, k.z, 'time'); }
     return;
   }
@@ -3824,7 +3955,7 @@ function updateGate() {
   exitPad.material.opacity = RG.exitOpen ? 0.7 + Math.sin(G.stateTime * 6) * 0.25 : 0.45;
   if (!RG.exitOpen) {
     // No enemies left at all: nothing to hold the gate shut.
-    if (G.state === 'play' && !RG.enemies.length && RG.mazeTime > 1) { openExit('clear'); return; }
+    if (G.state === 'play' && !RG.enemies.some((e) => e.kind !== 'runner') && RG.mazeTime > 1) { openExit('clear'); return; }
     const near = G.state === 'play' && Math.hypot(player.x - RG.exitX, player.z - RG.exitZ) < 4.5;
     if (near && RG.mazeTime - RG.lockedAt > 3) {
       RG.lockedAt = RG.mazeTime;
@@ -3883,7 +4014,7 @@ function equipOptions() {
   const out = [];
   for (const id of Object.keys(EQUIP)) {
     const own = RG.equip.find((e) => e.id === id);
-    if (own) { if (own.lvl < 3) out.push({ kind: 'equip', id, w: 8 }); }
+    if (own) { if (id === 'drones' ? droneNeedsFix() || RG.droneCap < DRONE_MAX : own.lvl < 3) out.push({ kind: 'equip', id, w: 8 }); }
     else if (RG.equip.length < RG.slots) out.push({ kind: 'equip', id, w: 5 });
   }
   return out;
@@ -3927,6 +4058,10 @@ function cardInfo(c) {
       icon: c.id, color: s.color, tag: r === 1 ? 'NEW SKILL' : `SKILL · RANK ${r}`, name: s.name, desc: s.desc,
       change: `${r > 1 ? s.fx(r - 1) : 'none'} → ${s.fx(r)}`, rank: r, max: Number.isFinite(max) ? max : 0,
     };
+  }
+  if (c.kind === 'equip' && c.id === 'drones') {
+    const u = droneUpgrade();
+    return { icon: c.id, color: EQUIP.drones.color, tag: u.tag, name: EQUIP.drones.name, desc: u.desc, change: u.change, rank: 0, max: 0 };
   }
   if (c.kind === 'equip') {
     const q = EQUIP[c.id], own = RG.equip.find((e) => e.id === c.id), lvl = own ? own.lvl + 1 : 1;
@@ -3996,6 +4131,7 @@ function chooseUpgrade(i) {
   const c = luChoices[i];
   if (!c) return;
   if (luKind === 'perk') return choosePerk(c);
+  const before = cardInfo(c);
   if (c.kind === 'skill') { RG.skills[c.id]++; if (c.id === 'plating') RG.hearts++; }
   else if (c.kind === 'equip') {
     const own = RG.equip.find((e) => e.id === c.id);
@@ -4005,9 +4141,13 @@ function chooseUpgrade(i) {
   rogueStats();
   RG.hearts = Math.min(RG.hearts, RG.st.maxHearts);
   if (c.id === 'armor') RG.armor = RG.st.armorMax;
-  if (c.id === 'drones') while (RG.drones.length < RG.st.droneCap) RG.drones.push(DRONE_HP);
+  if (c.id === 'drones') {
+    if (!RG.droneCap) { RG.droneCap = 2; fixDrones(2); }
+    else if (droneNeedsFix()) fixDrones(2);
+    else { RG.droneCap = Math.min(DRONE_MAX, RG.droneCap + 1); fixDrones(1); }
+  }
   if (c.id === 'pulse') RG.pulseT = Math.min(RG.pulseT, RG.st.pulseEvery);
-  const info = cardInfo(c);
+  const info = c.id === 'drones' ? { ...before, name: before.tag === 'DRONE REPAIR' ? 'Drones repaired' : before.name } : cardInfo(c);
   popup(info.name.toUpperCase(), player.x, 4, player.z, 'big');
   ui.levelup.hidden = true;
   G.state = 'play';
@@ -4021,7 +4161,7 @@ function choosePerk(c) {
   else G.score += 1000 * G.wave;
   arcadeStats();
   ui.levelup.hidden = true;
-  startWave(G.wave + 1);
+  if (G.wave % 4 === 0) startRush(); else startWave(G.wave + 1);
   popup(info.name.toUpperCase(), player.x, 4, player.z, 'big', c.kind === 'perk' ? PERKS[c.id].fx(G.perks[c.id]) : '');
 }
 $('cards').addEventListener('click', (e) => {
@@ -4043,8 +4183,13 @@ function buildRows(skillsOnly = false) {
   if (!skillsOnly) {
     for (const e of RG.equip) {
       const q = EQUIP[e.id];
-      const fx = e.id === 'drones' ? `${RG.drones.length} of ${RG.st.droneCap} drones left · each catches ${DRONE_HP} shots · resupply from pickups` : q.desc[e.lvl - 1];
-      rows.push({ id: e.id, color: q.color, name: q.name, rank: `LV ${e.lvl}${e.lvl === 3 ? ' MAX' : ''}`, short: `L${e.lvl}`, fx });
+      if (e.id === 'drones') {
+        const cracked = RG.drones.filter((h) => h < DRONE_HP).length;
+        rows.push({ id: e.id, color: q.color, name: q.name, rank: `${RG.drones.length}/${RG.droneCap}`, short: String(RG.drones.length),
+          fx: `${RG.drones.length} of ${RG.droneCap} drones${cracked ? `, ${cracked} cracked` : ''} · each catches ${DRONE_HP} shots · fix them with upgrades and drone cubes` });
+        continue;
+      }
+      rows.push({ id: e.id, color: q.color, name: q.name, rank: `LV ${e.lvl}${e.lvl === 3 ? ' MAX' : ''}`, short: `L${e.lvl}`, fx: q.desc[e.lvl - 1] });
     }
   }
   for (const id of Object.keys(SKILLS)) {
@@ -4134,6 +4279,10 @@ function updateRogue(dt) {
     RG.time += dt;
     RG.mazeTime += dt;
     if (RG.streakT > 0 && (RG.streakT -= dt) <= 0) RG.streak = 0;
+    if (RG.overdrive > 0) {
+      RG.overdrive -= dt;
+      if (Math.random() < 0.5) burst(player.x + rand(-1, 1), 1.6, player.z + rand(-1, 1), ['#ffe14f', '#ffb347'], 1, 4, 0.22);
+    }
   }
   updateRoguePlayer(dt, active);
   const c = cellAt(player.x, player.z);
@@ -4335,10 +4484,10 @@ function updateRogueHud() {
   setText(rui.goal, 'rg', goal);
   if (hudCache.rgOpen !== RG.exitOpen) { hudCache.rgOpen = RG.exitOpen; rui.goal.classList.toggle('open', RG.exitOpen); }
   setText(rui.kills, 'rk', String(RG.kills));
-  const streaking = RG.streak >= 3;
+  const streaking = RG.streak >= 3 || RG.overdrive > 0;
   if (streaking) {
-    setText(rui.streak, 'rs', `STREAK ${RG.streak}`);
-    setText(rui.streakX, 'rsx', `XP ×${streakMult().toFixed(2)}`);
+    setText(rui.streak, 'rs', RG.streak >= 3 ? `STREAK ${RG.streak}` : 'STREAK');
+    setText(rui.streakX, 'rsx', RG.overdrive > 0 ? `OVERDRIVE ${Math.ceil(RG.overdrive)}s` : `XP ×${streakMult().toFixed(2)}`);
   }
   if (rui.streak.hidden === streaking) rui.streak.hidden = rui.streakX.hidden = !streaking;
 
@@ -4362,7 +4511,7 @@ function updateRogueHud() {
       if (e) {
         const q = EQUIP[e.id];
         d.style.background = q.color;
-        d.title = `${q.name} LV ${e.lvl}: ${q.desc[e.lvl - 1]}`;
+        d.title = e.id === 'drones' ? `${q.name}: each drone catches ${DRONE_HP} shots` : `${q.name} LV ${e.lvl}: ${q.desc[e.lvl - 1]}`;
         d.innerHTML = iconSvg(e.id);
         const pips = document.createElement('i');
         pips.textContent = '•'.repeat(e.lvl);
@@ -4378,8 +4527,9 @@ function updateRogueHud() {
     else if (e.id === 'armor') cd = RG.armor >= st.armorMax ? 1 : 1 - clamp(RG.armorT / st.armorRecharge, 0, 1);
     else if (e.id === 'drones' && el) {
       // Drones show how many are left instead of level pips.
-      cd = RG.drones.length / st.droneCap;
-      const label = `${RG.drones.length}/${st.droneCap}`, pips = el.querySelector('i');
+      // The sweep counts shots left, so a cracked drone shows as half.
+      cd = RG.drones.reduce((a, h) => a + h, 0) / (RG.droneCap * DRONE_HP);
+      const label = `${RG.drones.length}/${RG.droneCap}`, pips = el.querySelector('i');
       if (pips && pips.textContent !== label) pips.textContent = label;
     }
     if (cd < 0 || !el) return;
@@ -4419,6 +4569,11 @@ function drawMazeMap() {
     if (e.kind === 'core' || e.kind === 'boss') {
       ctx.fillStyle = e.kind === 'boss' ? '#b86cff' : '#ff3b5c';
       ctx.beginPath(); ctx.arc(e.x, e.z, e.kind === 'boss' ? 4.5 : 3.2 + Math.sin(G.stateTime * 5) * 0.6, 0, TAU); ctx.fill();
+    } else if (e.kind === 'runner') {
+      ctx.fillStyle = '#ffe14f';
+      ctx.globalAlpha = 0.55 + Math.sin(G.stateTime * 8) * 0.45;
+      ctx.beginPath(); ctx.arc(e.x, e.z, 2.2, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
     } else if (e.dist < 34) {
       ctx.fillStyle = e.elite ? '#f2c53d' : e.kind === 'sentry' || e.kind === 'spinner' ? '#ffa53a' : '#ff6b8a';
       ctx.fillRect(e.x - 1.2, e.z - 1.2, 2.4, 2.4);
@@ -4495,7 +4650,9 @@ function updateHud() {
   setText(ui.timer, 'timer', t >= 10 ? String(Math.ceil(t)) : t.toFixed(1));
   const low = t < 10 && (G.state === 'play');
   if (hudCache.low !== low) { hudCache.low = low; ui.timer.classList.toggle('low', low); }
-  setText(ui.wave, 'wave', String(G.wave));
+  setText(ui.waveLbl, 'waveLbl', G.rush ? 'BONUS' : 'WAVE');
+  setText(ui.wave, 'wave', G.rush ? 'RUSH' : String(G.wave));
+  if (ui.shotsBox.hidden !== G.rush) ui.shotsBox.hidden = G.rush;   // no Sharpshooter in a rush
   setText(ui.left, 'left', String(Math.max(0, G.remaining)));
   const limit = SHOTS_PER_TARGET * G.waveTargets, overLimit = G.shots > limit;
   setText(ui.shots, 'shots', `${G.shots}/${limit}`);
@@ -4603,7 +4760,7 @@ function updateArcade(dt) {
     G.timeLeft -= dt;
     const sec = Math.ceil(G.timeLeft);
     if (sec !== G.lastSecond) { G.lastSecond = sec; if (sec <= 10 && sec > 0) audio.tick(); }
-    if (G.timeLeft <= 0) gameOver();
+    if (G.timeLeft <= 0) { if (G.rush) endRush(false); else gameOver(); }
   }
   if (G.comboTimer > 0 && G.state === 'play') G.comboTimer -= dt;
 
@@ -4618,12 +4775,13 @@ function updateArcade(dt) {
 
   const engineOn = G.state === 'play' || G.state === 'countdown' || G.state === 'clear';
   audio.engine(player.speed, engineOn, G.state === 'play' ? Math.abs(input.throttle) : 0);
-  const bpm = 112 + Math.min(G.wave - 1, 14) * 5 + (G.state === 'play' && G.timeLeft < 10 ? 16 : 0);
+  const bpm = 112 + Math.min(G.wave - 1, 14) * 5 + (G.state === 'play' && G.timeLeft < 10 ? 16 : 0) + (G.rush ? 20 : 0);
   audio.updateMusic(G.state === 'play' || G.state === 'countdown' || G.state === 'clear', bpm);
 
   // Every second wave ends with a perk pick; the next wave starts once one is chosen.
   if (G.state === 'clear' && G.stateTime > 2.3) {
-    if (G.wave % 2 === 0) openLevelUp('perk');
+    if (G.rush) startWave(G.wave + 1);
+    else if (G.wave % 2 === 0) openLevelUp('perk');
     else startWave(G.wave + 1);
   }
   if (G.state === 'over' && G.stateTime > 1.5 && ui.over.hidden) showGameOver();
@@ -4683,7 +4841,7 @@ showTitle();
 $('loading').remove();
 requestAnimationFrame((t) => { last = t; frame(t); });
 // Debug handle for poking at the game from the browser console.
-window.__pytank = { G, RG, player, input, pbar, uplink, get targets() { return targets; }, get ebs() { return ebs; }, get pbs() { return pbs; }, get powerups() { return powerups; }, startWave, buildMaze, rogueStats, grantPower, hitPlayer, rogueHurt, ebShot, dropBoost, spawnFoe };
+window.__pytank = { G, RG, player, input, pbar, uplink, get targets() { return targets; }, get ebs() { return ebs; }, get pbs() { return pbs; }, get powerups() { return powerups; }, startWave, buildMaze, rogueStats, grantPower, hitPlayer, rogueHurt, ebShot, dropBoost, spawnFoe, killEnemy, destroyTarget, openLevelUp };
 </script>
 </body>
 </html>

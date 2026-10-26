@@ -78,9 +78,8 @@
   @keyframes blink { 50% { opacity: 0.45; } }
   #timer.gain { animation: gain 0.6s ease-out; }
   @keyframes gain { from { transform: scale(1.35); color: var(--mint); } to { transform: scale(1); } }
-  #power { display: grid; gap: 4px; justify-items: center; font: 700 11px/1 var(--f-pixel); letter-spacing: 0.12em; }
-  #power i { display: block; width: 84px; height: 4px; background: var(--line); }
-  #power b { display: block; height: 100%; background: var(--hot); transform-origin: left; }
+  #powers { justify-content: center; flex-wrap: wrap; max-width: 46vw; }
+  #powers .slot.ending { animation: blink 0.3s steps(2, jump-none) infinite; }
   .wave-row { display: flex; gap: 10px; align-items: baseline; font: 700 13px/1 var(--f-pixel); letter-spacing: 0.08em; }
   .wave-row b { color: var(--gold); }
   .wave-row span { white-space: nowrap; }
@@ -164,6 +163,8 @@
   }
   .cta:active { transform: translateY(4px); box-shadow: 0 2px 0 #a8401a; }
   .ghost { width: 100%; padding: 11px; border: 2px solid var(--line); border-radius: 4px; background: transparent; font: 700 13px/1 var(--f-pixel); letter-spacing: 0.14em; }
+  .ghost.armed { border-color: var(--hot); color: var(--hot); }
+  .pause-note { margin: -6px 0 0; font: 500 12px/1.35 var(--f-body); text-align: center; opacity: 0.7; }
   .best { font: 700 12px/1 var(--f-pixel); letter-spacing: 0.14em; text-align: center; opacity: 0.85; }
   .best b { color: var(--gold); }
   .card h2 { margin: 0; font: clamp(44px, 12vw, 64px)/1 var(--f-display); text-align: center; color: var(--hot); }
@@ -258,9 +259,10 @@
   .lo-title { font: 700 11px/1 var(--f-pixel); letter-spacing: 0.18em; color: var(--gold); }
   .lo-stats { font: 700 10px/1.6 var(--f-pixel); letter-spacing: 0.06em; opacity: 0.85; }
   .loadout { display: grid; gap: 7px; }
-  body.mode-rogue #pause .card { width: min(680px, 100%); }
-  body.mode-rogue #pause h2 { font-size: clamp(34px, 9vw, 52px); }
-  @media (min-width: 700px) { .loadout { grid-template-columns: 1fr 1fr; gap: 9px 18px; } }
+  #pause .card { width: min(680px, 100%); }
+  #pause h2 { font-size: clamp(34px, 9vw, 52px); }
+  .lo-sub { font: 700 10px/1 var(--f-pixel); letter-spacing: 0.16em; opacity: 0.7; margin-top: 4px; }
+  @media (min-width: 700px) { .loadout { grid-template-columns: 1fr 1fr; gap: 9px 18px; } .lo-sub, .lo-empty { grid-column: 1 / -1; } }
   .lo-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; grid-template-areas: "ico nm rk" "ico fx fx"; gap: 2px 10px; align-items: center; }
   .lo-row .ico { grid-area: ico; width: 28px; height: 28px; border-radius: 4px; display: grid; place-items: center; color: var(--night); }
   .lo-row .ico svg { width: 18px; height: 18px; }
@@ -325,7 +327,7 @@
   #banner.hide { animation: none; opacity: 0; }
     #timer.low, #timer.gain, #combo.bump, #rGoal.open, .upg, #dashBtn.down { animation: none; }
     #hurt.low { animation: none; opacity: 0.3; }
-    .slot.fired { animation: none; }
+    .slot.fired, #powers .slot.ending { animation: none; }
   }
 </style>
 </head>
@@ -343,6 +345,7 @@
         <div id="score">000000</div>
         <div id="combo" hidden><span id="comboText">COMBO x2</span><i id="comboBar"></i></div>
       </div>
+      <div id="perkRow" class="strip hud-strip only-arcade"></div>
       <div class="plate only-rogue">
         <div class="hearts"><span id="heartsFull"></span><span id="heartsEmpty" class="empty"></span><span id="armorPips" class="armor"></span></div>
         <div class="xp-row"><span>LV <b id="rLevel">1</b></span><i><b id="rXp"></b></i></div>
@@ -356,7 +359,7 @@
     </div>
     <div class="cell mid">
       <div id="timer" class="only-arcade">30</div>
-      <div id="power" class="only-arcade" hidden><span id="powerName">RAPID</span><i><b id="powerBar"></b></i></div>
+      <div id="powers" class="slots only-arcade"></div>
       <div class="rogue-mid only-rogue">
         <div id="rDepth">MAZE 1</div>
         <div id="rGoal">CORES 0/2</div>
@@ -391,7 +394,7 @@
         <button id="btnArcade" class="mode">
           <span class="mode-name">ARCADE</span>
           <span class="mode-best">BEST <b id="bestArcade">0</b></span>
-          <span class="mode-desc">Blast every target before the clock runs out. Ram crates, mind the barrels, and save shots for a sharpshooter bonus.</span>
+          <span class="mode-desc">Blast every target before the clock runs out. Stack power-ups, pick a perk every second wave, and save shots for a sharpshooter bonus.</span>
         </button>
         <button id="btnRogue" class="mode rogue">
           <span class="mode-name">BULLET ROGUE</span>
@@ -416,13 +419,14 @@
   <div class="card">
     <div class="card-body">
       <h2 style="color: var(--ink)">PAUSED</h2>
-      <div class="loadout-wrap only-rogue">
+      <div class="loadout-wrap">
         <div class="lo-title">LOADOUT</div>
         <div id="loStats" class="lo-stats"></div>
         <div id="loadout" class="loadout"></div>
       </div>
       <button id="btnResume" class="cta">RESUME</button>
-      <button id="btnQuit" class="ghost">QUIT TO TITLE</button>
+      <button id="btnForfeit" class="ghost">FORFEIT</button>
+      <p class="pause-note">Forfeit ends the run and keeps your results.</p>
     </div>
   </div>
 </section>
@@ -635,10 +639,38 @@ const M = {
   shell: new THREE.MeshBasicMaterial({ color: '#fff3b0' }),
   enemyShell: new THREE.MeshBasicMaterial({ color: '#ff5a3c' }),
 };
-const POWER = {
-  rapid:  { name: 'RAPID FIRE', color: '#ff8a2a', mat: lam('#ffffff', { map: letterTex('R', '#ff8a2a'), emissive: '#3a1800' }) },
-  spread: { name: 'SPREAD SHOT', color: '#3fd7ff', mat: lam('#ffffff', { map: letterTex('S', '#3fd7ff'), emissive: '#00283a' }) },
-  time:   { name: '+5 SECONDS', color: '#6cf0a0', mat: lam('#ffffff', { map: letterTex('+', '#6cf0a0'), emissive: '#00301a' }) },
+// Arcade power-ups run on their own clocks and stack. Grabbing one you already have resets its clock and powers it up, to level 3.
+const POWERS = {
+  rapid:  { name: 'RAPID FIRE', icon: 'reload', color: '#ff8a2a', w: 3, desc: ['Fire 2.5× as fast', 'Fire 3× as fast', 'Fire 3.8× as fast'] },
+  spread: { name: 'SPREAD SHOT', icon: 'multi', color: '#f2c53d', w: 3, desc: ['3-way shot', '5-way shot', '7-way shot'] },
+  bounce: { name: 'RICOCHET', icon: 'bounce', color: '#7d97ff', w: 2, desc: ['Shells bounce 2 more times', '3 more bounces', '4 more bounces'] },
+  seeker: { name: 'SEEKER', icon: 'homing', color: '#b86cff', w: 2, desc: ['Shells curve toward targets', 'Shells track harder', 'Shells lock on'] },
+  pierce: { name: 'PIERCING', icon: 'pierce', color: '#ff4fa3', w: 2, desc: ['Shells punch through 2 targets', 'Through 4 targets', 'Through 8 targets'] },
+  shield: { name: 'SHIELD', icon: 'armor', color: '#56e8ff', w: 1.5, desc: ['Blocks one hit'] },     // instant: a charge, up to 3
+  time:   { name: '+5 SECONDS', icon: 'clock', color: '#6cf0a0', w: 2, desc: ['Five more seconds'] },  // instant
+};
+const POWER_TIME = 9;
+const SHIELD_MAX = 3;
+const ROMAN = ['', '', ' II', ' III'];
+const powerFx = {
+  rapid: [1, 0.4, 0.33, 0.26],   // fire cooldown multiplier
+  spread: [[0], [-0.17, 0, 0.17], [-0.26, -0.13, 0, 0.13, 0.26], [-0.33, -0.22, -0.11, 0, 0.11, 0.22, 0.33]],
+  bounce: [0, 2, 3, 4],
+  seeker: [0, 2.6, 4.2, 6.5],      // turn rate, rad/s
+  pierce: [0, 2, 4, 8],
+};
+// Arcade perks: a pick of three every second wave, kept for the whole run.
+const PERKS = {
+  reload:     { name: 'Autoloader', icon: 'reload', color: '#ff8a2a', desc: '+10% fire rate', fx: (r) => `+${r * 10}% fire rate` },
+  velocity:   { name: 'Long Barrel', icon: 'velocity', color: '#f2c53d', max: 6, desc: '+10% shell speed and range', fx: (r) => `+${r * 10}% shell speed` },
+  engine:     { name: 'Engine Tune', icon: 'engine', color: '#3fd7ff', max: 5, desc: '+5% top speed', fx: (r) => `+${r * 5}% top speed` },
+  overclock:  { name: 'Overclock', icon: 'nitro', color: '#7d97ff', desc: 'Power-ups last 20% longer', fx: (r) => `power-ups last ${(POWER_TIME * (1 + 0.2 * r)).toFixed(1)} s` },
+  scavenger:  { name: 'Scavenger', icon: 'salvage', color: '#6cf0a0', max: 6, desc: 'Targets drop power-ups 25% more often', fx: (r) => `+${r * 25}% power-up drops` },
+  adrenaline: { name: 'Adrenaline', icon: 'crit', color: '#ff4b3a', max: 4, desc: 'Every target you destroy adds 0.4 s to running power-ups', fx: (r) => `+${(r * 0.4).toFixed(1)} s per target` },
+  combo:      { name: 'Combo Keeper', icon: 'combo', color: '#ffe14f', max: 4, desc: 'Combos stay alive 0.5 s longer', fx: (r) => `${(COMBO_WINDOW + r * 0.5).toFixed(1)} s combo window` },
+  ricochet:   { name: 'Bank Shot', icon: 'bounce', color: '#43e0d6', max: 3, desc: 'Shells bounce once more', fx: (r) => `${1 + r} bounces` },
+  armor:      { name: 'Reactive Armor', icon: 'armor', color: '#56e8ff', max: 2, desc: 'Start every wave with a shield charge', fx: (r) => `${r} shield charge${r > 1 ? 's' : ''} each wave` },
+  timebank:   { name: 'Time Bank', icon: 'clock', color: '#6cf0a0', max: 5, desc: '+3 s on every wave clock', fx: (r) => `+${r * 3} s per wave` },
 };
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -716,7 +748,7 @@ const BLAST_BARREL = { ...BLAST_BIG, flash: 7.5, flashColor: '#ffb347', flashDur
 
 const TYPES = {
   crate: {
-    r: 1.35, pts: 100, drop: 0.07, radar: '#e0a050', debris: ['#c08038', '#6e3c15', '#d99a4e'], blast: BLAST_SMALL,
+    r: 1.35, pts: 100, drop: 0.08, radar: '#e0a050', debris: ['#c08038', '#6e3c15', '#d99a4e'], blast: BLAST_SMALL,
     make() { const g = new THREE.Group(); g.add(part(M.crate, 2.4, 2.4, 2.4, 0, 1.2, 0)); return g; },
   },
   barrel: {
@@ -729,7 +761,7 @@ const TYPES = {
     },
   },
   drone: {
-    r: 1.15, pts: 250, drop: 0.15, radar: '#43e0d6', debris: ['#43e0d6', '#1f2a3a', '#ffffff'], blast: BLAST_SMALL,
+    r: 1.15, pts: 250, drop: 0.18, radar: '#43e0d6', debris: ['#43e0d6', '#1f2a3a', '#ffffff'], blast: BLAST_SMALL,
     make() {
       const g = new THREE.Group();
       const body = new THREE.Group();
@@ -763,7 +795,7 @@ let powerups = [];
 
 const player = {
   x: SPAWN.x, z: SPAWN.z, a: 0, speed: 0, turnVel: 0, kx: 0, kz: 0, spin: 0, cooldown: 0, invuln: 0,
-  power: null, powerTime: 0, recoil: 0, dustAcc: 0, bumpCd: 0,
+  recoil: 0, dustAcc: 0, bumpCd: 0,
   pitch: { x: 0, v: 0 }, roll: { x: 0, v: 0 }, mesh: makeTank(M.player, M.playerDark),
 };
 scene.add(player.mesh);
@@ -777,7 +809,9 @@ const G = {
   combo: 0, comboTimer: 0, bestCombo: 0,
   stateTime: 0, bonusSpawned: false, lastSecond: 99, waveHits: 0, shots: 0, waveTargets: 6,
   shake: 0, hitstop: 0, dustColor: '#9aa86a', best: store.get('best', 0), soundMode: store.get('sound', 0),
-  overShownAt: 0,
+  overShownAt: 0, forfeit: false,
+  // Arcade run: perk ranks, running power-ups ({ lvl, t, dur }), shield charges, and the stats they add up to.
+  perks: {}, powers: {}, shield: 0, st: null,
 };
 
 function addWall(cx, cz, w, d) {
@@ -1102,7 +1136,7 @@ function assistTarget() {
 }
 // Heading that leads a moving target by the shell's flight time.
 function leadAngle(t) {
-  const p = player, lead = Math.hypot(t.x - p.x, t.z - p.z) / SHELL_SPEED;
+  const p = player, lead = Math.hypot(t.x - p.x, t.z - p.z) / G.st.shellSpeed;
   return Math.atan2(t.x + t.vx * lead - p.x, t.z + t.vz * lead - p.z);
 }
 
@@ -1499,7 +1533,7 @@ const ui = {
   hud: $('hud'), title: $('title'), pause: $('pause'), over: $('over'), touch: touchEl,
   score: $('score'), timer: $('timer'), wave: $('wave'), left: $('left'),
   combo: $('combo'), comboText: $('comboText'), comboBar: $('comboBar'), shots: $('shots'), shotsBox: $('shotsBox'),
-  power: $('power'), powerName: $('powerName'), powerBar: $('powerBar'),
+  powers: $('powers'), perks: $('perkRow'),
   banner: $('banner'), bannerBig: $('bannerBig'), bannerSmall: $('bannerSmall'),
   fade: $('fade'), hurt: $('hurt'), sound: $('btnSound'), levelup: $('levelup'),
 };
@@ -1530,6 +1564,7 @@ function showTitle() {
   G.mode = 'arcade';
   document.body.classList.remove('mode-rogue');
   setState('title');
+  resetArcadeRun();
   buildArena(1);
   G.cfg = waveConfig(1);
   spawnWave(G.cfg, true);
@@ -1552,12 +1587,38 @@ function startGame(mode = G.mode) {
   ui.title.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.levelup.hidden = true; ui.hud.hidden = false;
   if (isTouch) document.body.classList.add('is-touch');
   resize();
+  G.forfeit = false;
   if (mode === 'rogue') startRogueRun();
   else {
     G.score = 0; G.kills = 0; G.bestCombo = 0; G.combo = 0; G.comboTimer = 0;
+    resetArcadeRun();
     startWave(1);
   }
 }
+
+function resetArcadeRun() {
+  G.perks = Object.fromEntries(Object.keys(PERKS).map((k) => [k, 0]));
+  G.powers = {};
+  G.shield = 0;
+  G.perkSig = '';
+  arcadeStats();
+}
+function arcadeStats() {
+  const k = G.perks;
+  G.st = {
+    fireMult: 1 / (1 + 0.1 * k.reload),
+    shellSpeed: SHELL_SPEED * (1 + 0.1 * k.velocity),
+    speedMult: 1 + 0.05 * k.engine,
+    powerTime: POWER_TIME * (1 + 0.2 * k.overclock),
+    dropMult: 1 + 0.25 * k.scavenger,
+    adrenaline: 0.4 * k.adrenaline,
+    comboWindow: COMBO_WINDOW + 0.5 * k.combo,
+    bounces: 1 + k.ricochet,
+    waveShield: k.armor,
+    timeBonus: 3 * k.timebank,
+  };
+}
+const powerLvl = (id) => (G.powers[id] ? G.powers[id].lvl : 0);
 
 function startWave(w) {
   G.wave = w;
@@ -1566,7 +1627,8 @@ function startWave(w) {
   spawnWave(G.cfg, false);
   resetPlayer();
   fadeIn();
-  G.timeLeft = G.cfg.time;
+  G.timeLeft = G.cfg.time + G.st.timeBonus;
+  G.shield = Math.max(G.shield, G.st.waveShield);
   G.bonusSpawned = false;
   G.lastSecond = 99;
   G.shots = 0;
@@ -1575,7 +1637,7 @@ function startWave(w) {
   G.waveHits = 0;
   setState('countdown');
   ui.touch.hidden = !isTouch;
-  banner(`WAVE ${w}`, `${G.palette.name} · ${G.remaining} TARGETS · ${G.cfg.time}s`, 1.5);
+  banner(`WAVE ${w}`, `${G.palette.name} · ${G.remaining} TARGETS · ${Math.round(G.timeLeft)}s`, 1.5);
   audio.beep(false);
 }
 
@@ -1638,7 +1700,7 @@ function addTarget(type, x, z, delay) {
 function resetPlayer() {
   Object.assign(player, {
     x: SPAWN.x, z: SPAWN.z, a: 0, speed: 0, turnVel: 0, kx: 0, kz: 0, spin: 0, cooldown: 0.2, invuln: 0,
-    power: null, powerTime: 0, recoil: 0, dustAcc: 0, bumpCd: 0, reversing: false,
+    recoil: 0, dustAcc: 0, bumpCd: 0, reversing: false,
   });
   player.pitch.x = player.pitch.v = player.roll.x = player.roll.v = 0;
   player.mesh.visible = true;
@@ -1667,7 +1729,7 @@ function waveClear() {
 function gameOver() {
   G.timeLeft = 0;
   setState('over');
-  banner('TIME UP', '', 1.4);
+  banner(G.forfeit ? 'FORFEIT' : 'TIME UP', '', 1.4);
   audio.over();
   for (const s of shells) { scene.remove(s.mesh); s.dead = true; }
   ui.touch.hidden = true;
@@ -1703,8 +1765,9 @@ function showOver(title, stats, bestHtml, isBest, chips = null) {
 function showGameOver() {
   const isBest = G.score > G.best;
   if (isBest) { G.best = G.score; store.set('best', G.best); }
-  showOver('TIME UP', [['SCORE', G.score.toLocaleString()], ['WAVE', G.wave], ['TARGETS', G.kills], ['BEST COMBO', 'x' + Math.max(1, G.bestCombo)]],
-    isBest ? 'NEW BEST SCORE!' : `BEST <b>${G.best.toLocaleString()}</b>`, isBest && G.score > 0);
+  const chips = buildRows().map((r) => ({ text: `${r.name} ${r.rank}`, color: r.color }));
+  showOver(G.forfeit ? 'FORFEIT' : 'TIME UP', [['SCORE', G.score.toLocaleString()], ['WAVE', G.wave], ['TARGETS', G.kills], ['BEST COMBO', 'x' + Math.max(1, G.bestCombo)]],
+    isBest ? 'NEW BEST SCORE!' : `BEST <b>${G.best.toLocaleString()}</b>`, isBest && G.score > 0, chips);
 }
 
 function togglePause() {
@@ -1713,7 +1776,8 @@ function togglePause() {
   G.prevState = G.state;
   G.state = 'paused';
   ui.pause.hidden = false;
-  if (G.mode === 'rogue') renderLoadout();
+  disarmForfeit();
+  renderLoadout();
   audio.engine(0, false);
   releaseAllPointers();
   keys.clear();
@@ -1723,6 +1787,32 @@ function resume() {
   G.state = G.prevState;
   ui.pause.hidden = true;
   audio.init();
+}
+// Forfeit ends the run where it stands and goes to the results, so the score or depth still counts.
+// The first press arms the button; a second press within a few seconds confirms.
+let forfeitTimer = 0;
+function forfeit() {
+  if (G.state !== 'paused') return;
+  const btn = $('btnForfeit');
+  if (!btn.classList.contains('armed')) {
+    btn.classList.add('armed');
+    btn.textContent = 'PRESS AGAIN TO FORFEIT';
+    clearTimeout(forfeitTimer);
+    forfeitTimer = setTimeout(disarmForfeit, 3000);
+    return;
+  }
+  disarmForfeit();
+  ui.pause.hidden = true;
+  G.forfeit = true;
+  audio.init();
+  if (G.mode === 'rogue') rogueDeath();
+  else gameOver();
+}
+function disarmForfeit() {
+  clearTimeout(forfeitTimer);
+  const btn = $('btnForfeit');
+  btn.classList.remove('armed');
+  btn.textContent = 'FORFEIT';
 }
 
 const SOUND_LABELS = [['♪', 'Sound: music and effects'], ['FX', 'Sound: effects only'], ['OFF', 'Sound: off']];
@@ -1744,7 +1834,7 @@ $('btnAgain').addEventListener('click', () => startGame(G.mode));
 $('btnMenu').addEventListener('click', showTitle);
 $('btnPause').addEventListener('click', togglePause);
 $('btnResume').addEventListener('click', resume);
-$('btnQuit').addEventListener('click', showTitle);
+$('btnForfeit').addEventListener('click', forfeit);
 $('btnSound').addEventListener('click', cycleSound);
 for (const id of ['btnPause', 'btnSound']) {
   // Drop focus after a click so Space (fire) can't press the button again.
@@ -1761,12 +1851,11 @@ document.addEventListener('visibilitychange', () => {
 // ============================================================
 function firePlayer() {
   const p = player;
-  p.cooldown = G.cfg.fireCooldown * (p.power === 'rapid' ? 0.4 : 1);
+  p.cooldown = G.cfg.fireCooldown * G.st.fireMult * powerFx.rapid[powerLvl('rapid')];
   G.shots++;
   const lock = assistTarget();
   const aim = lock ? leadAngle(lock) : p.a;
-  const spread = p.power === 'spread' ? [-0.17, 0, 0.17] : [0];
-  for (const da of spread) spawnShell(p.x, p.z, aim + da, 'player', null);
+  for (const da of powerFx.spread[powerLvl('spread')]) spawnShell(p.x, p.z, aim + da, 'player', null);
   const mx = p.x + Math.sin(p.a) * 2.4, mz = p.z + Math.cos(p.a) * 2.4;
   flash(mx, 1.5, mz, 0.9, '#fff1b0', 0.12);
   p.recoil = 1;
@@ -1777,12 +1866,15 @@ function firePlayer() {
 }
 
 function spawnShell(x, z, a, owner, src) {
-  const spd = owner === 'player' ? SHELL_SPEED : ENEMY_SHELL_SPEED;
-  const mesh = new THREE.Mesh(boxGeo, owner === 'player' ? M.shell : M.enemyShell);
-  mesh.scale.set(0.32, 0.32, owner === 'player' ? 1.1 : 0.8);
+  const mine = owner === 'player';
+  const spd = mine ? G.st.shellSpeed : ENEMY_SHELL_SPEED;
+  const mesh = new THREE.Mesh(boxGeo, mine ? M.shell : M.enemyShell);
+  mesh.scale.set(0.32, 0.32, mine ? 1.1 : 0.8);
+  const bounces = mine ? G.st.bounces + powerFx.bounce[powerLvl('bounce')] : 0;
   const b = {
     x, z, vx: Math.sin(a) * spd, vz: Math.cos(a) * spd,
-    life: owner === 'player' ? SHELL_LIFE : 2.8, bounces: owner === 'player' ? 1 : 0,
+    life: mine ? SHELL_LIFE + Math.max(0, bounces - 1) * 0.3 : 2.8, bounces,
+    pierce: mine ? powerFx.pierce[powerLvl('pierce')] : 0, seek: mine ? powerFx.seeker[powerLvl('seeker')] : 0,
     owner, src, banked: false, dead: false, mesh,
   };
   scene.add(mesh);
@@ -1827,27 +1919,45 @@ function moveShell(b, dist) {
   return true;
 }
 
-// Checks the segment the shell is about to travel; resolves the nearest hit.
+// Checks the segment the shell is about to travel; resolves hits nearest first. Piercing shells carry on.
 function shellHits(b, dx, dz, len) {
-  let best = -1, bestT = null;
-  for (const t of targets) {
-    if (!t.alive || t === b.src || t.age < 0) continue;
-    const d = segCircle(b.x, b.z, dx, dz, len, t.x, t.z, t.r + 0.25);
-    if (d >= 0 && (best < 0 || d < best)) { best = d; bestT = t; }
-  }
-  if (b.owner === 'enemy' && G.state === 'play') {
-    const d = segCircle(b.x, b.z, dx, dz, len, player.x, player.z, TANK_R);
-    if (d >= 0 && (best < 0 || d < best)) {
-      b.x += dx * d; b.z += dz * d;
-      hitPlayer(dx, dz);
-      return true;
+  for (;;) {
+    let best = -1, bestT = null;
+    for (const t of targets) {
+      if (!t.alive || t === b.src || t.age < 0) continue;
+      const d = segCircle(b.x, b.z, dx, dz, len, t.x, t.z, t.r + 0.25);
+      if (d >= 0 && (best < 0 || d < best)) { best = d; bestT = t; }
     }
+    if (b.owner === 'enemy' && G.state === 'play') {
+      const d = segCircle(b.x, b.z, dx, dz, len, player.x, player.z, TANK_R);
+      if (d >= 0 && (best < 0 || d < best)) {
+        b.x += dx * d; b.z += dz * d;
+        hitPlayer(dx, dz);
+        return true;
+      }
+    }
+    if (!bestT) return false;
+    if (b.owner === 'player') {
+      destroyTarget(bestT, { banked: b.banked });
+      if (b.pierce > 0) { b.pierce--; burst(b.x + dx * best, 1.5, b.z + dz * best, '#ff4fa3', 3, 6, 0.2); continue; }
+    } else burst(b.x + dx * best, 1.5, b.z + dz * best, '#ff5a3c', 4, 5, 0.2);
+    b.x += dx * best; b.z += dz * best;
+    return true;
   }
-  if (!bestT) return false;
-  b.x += dx * best; b.z += dz * best;
-  if (b.owner === 'player') destroyTarget(bestT, { banked: b.banked });
-  else burst(b.x, 1.5, b.z, '#ff5a3c', 4, 5, 0.2);
-  return true;
+}
+
+// Seeker shells bend toward the nearest target ahead of them.
+function seekTarget(b, dt) {
+  let best = null, bd = 26 * 26;
+  for (const t of targets) {
+    if (!t.alive || t.age < 0) continue;
+    const dx = t.x - b.x, dz = t.z - b.z, d2 = dx * dx + dz * dz;
+    if (d2 < bd && dx * b.vx + dz * b.vz > 0) { bd = d2; best = t; }
+  }
+  if (!best) return;
+  const a = Math.atan2(b.vx, b.vz), want = Math.atan2(best.x - b.x, best.z - b.z), sp = Math.hypot(b.vx, b.vz);
+  const na = a + clamp(angDiff(a, want), -b.seek * dt, b.seek * dt);
+  b.vx = Math.sin(na) * sp; b.vz = Math.cos(na) * sp;
 }
 
 function updateShells(dt) {
@@ -1855,6 +1965,7 @@ function updateShells(dt) {
     if (b.dead) continue;
     b.life -= dt;
     if (b.life <= 0) { burst(b.x, 1.5, b.z, '#bdbdbd', 2, 1, 0.3, { smoke: true }); killShell(b); continue; }
+    if (b.seek) seekTarget(b, dt);
     if (!moveShell(b, Math.hypot(b.vx, b.vz) * dt)) { killShell(b); continue; }
     syncShell(b);
   }
@@ -1885,7 +1996,7 @@ function destroyTarget(t, opts = {}) {
 
   if (G.state === 'play') {
     G.combo = G.comboTimer > 0 ? G.combo + 1 : 1;
-    G.comboTimer = COMBO_WINDOW;
+    G.comboTimer = G.st.comboWindow;
     G.bestCombo = Math.max(G.bestCombo, G.combo);
     const mult = Math.min(G.combo, 8);
     let pts = def.pts * mult, cls = '', sub = mult > 1 ? `COMBO x${mult}` : '';
@@ -1902,7 +2013,9 @@ function destroyTarget(t, opts = {}) {
       popup('+5s', t.x, 4.2, t.z, 'time');
       audio.bonus();
     }
-    if (Math.random() < def.drop) dropPowerup(t.x, t.z, t.type === 'bonus');
+    if (Math.random() < def.drop * G.st.dropMult) dropPowerup(t.x, t.z, t.type === 'bonus');
+    // Adrenaline: every target destroyed tops up the power-ups already running.
+    if (G.st.adrenaline) for (const pw of Object.values(G.powers)) pw.t = Math.min(pw.dur, pw.t + G.st.adrenaline);
   }
   if (t.type === 'barrel') explode(t);
   if (t.type !== 'bonus') {
@@ -1937,6 +2050,18 @@ function explode(t) {
 
 function hitPlayer(dx, dz) {
   if (player.invuln > 0 || G.state !== 'play') return;
+  if (G.shield > 0) {
+    // A shield charge soaks the hit: no lost time, no spin, and the wave still counts as hit-free.
+    G.shield--;
+    player.invuln = 1;
+    player.kx += dx * 5; player.kz += dz * 5;
+    for (const s of shells) if (s.owner === 'enemy' && Math.hypot(s.x - player.x, s.z - player.z) < 6) killShell(s);
+    flash(player.x, 1.4, player.z, 3.4, '#56e8ff', 0.3);
+    popup('BLOCKED', player.x, 3, player.z, 'bank', G.shield ? `${G.shield} LEFT` : '');
+    addShake(0.4);
+    audio.shieldBreak();
+    return;
+  }
   player.spin = 0.9;
   player.invuln = 2.0;
   player.speed = 0;
@@ -1955,9 +2080,15 @@ function hitPlayer(dx, dz) {
 }
 
 function dropPowerup(x, z, force) {
-  const pool = force ? ['rapid', 'spread'] : ['rapid', 'rapid', 'spread', 'spread', 'time'];
-  const type = pool[Math.floor(Math.random() * pool.length)];
-  const mesh = new THREE.Mesh(boxGeo, POWER[type].mat);
+  // The bonus saucer always drops a weapon; shields turn up more once enemy tanks shoot back.
+  const pool = Object.keys(POWERS).filter((k) => !force || (k !== 'time' && k !== 'shield')).map((k) => {
+    let w = POWERS[k].w;
+    if (k === 'shield') w *= G.shield >= SHIELD_MAX ? 0 : G.cfg.tankShoot || G.cfg.barrels > 2 ? 1.5 : 1;
+    return { k, w };
+  });
+  let r = Math.random() * pool.reduce((a, c) => a + c.w, 0), type = pool[0].k;
+  for (const c of pool) { r -= c.w; if (r <= 0) { type = c.k; break; } }
+  const mesh = new THREE.Mesh(boxGeo, powerMat[type]);
   mesh.scale.setScalar(1.3);
   mesh.castShadow = true;
   mesh.position.set(x, 1.4, z);
@@ -1977,21 +2108,37 @@ function updatePowerups(dt) {
     if (G.state === 'play' && Math.hypot(player.x - p.x, player.z - p.z) < TANK_R + 1.1) {
       p.dead = true;
       scene.remove(p.mesh);
-      if (p.type === 'time') gainTime(5);
-      else { player.power = p.type; player.powerTime = 8; }
-      popup(POWER[p.type].name, p.x, 3, p.z, p.type === 'time' ? 'time' : '');
-      flash(p.x, 1.4, p.z, 2.2, POWER[p.type].color, 0.25);
-      audio.pickup();
+      grantPower(p.type, p.x, p.z);
     }
   }
   powerups = powerups.filter((p) => !p.dead);
+}
+
+function grantPower(type, x, z) {
+  const P = POWERS[type];
+  if (type === 'time') {
+    gainTime(5);
+    popup(P.name, x, 3, z, 'time');
+  } else if (type === 'shield') {
+    G.shield = Math.min(SHIELD_MAX, G.shield + 1);
+    popup(P.name, x, 3, z, 'bank', G.shield > 1 ? `${G.shield} CHARGES` : 'BLOCKS ONE HIT');
+    audio.shield();
+  } else {
+    const lvl = Math.min(3, powerLvl(type) + 1);
+    G.powers[type] = { lvl, t: G.st.powerTime, dur: G.st.powerTime };
+    popup(P.name + ROMAN[lvl], x, 3, z, '', P.desc[lvl - 1]);
+    const n = Object.keys(G.powers).length;
+    if (n >= 3) popup(`POWER STACK x${n}`, player.x, 5, player.z, 'big');
+  }
+  flash(x, 1.4, z, 2.2, P.color, 0.25);
+  audio.pickup();
 }
 
 // ============================================================
 // Entity updates
 // ============================================================
 function updatePlayer(dt, active) {
-  const p = player, cfg = G.cfg, vmax = cfg.playerSpeed;
+  const p = player, cfg = G.cfg, vmax = cfg.playerSpeed * G.st.speedMult;
   const control = active && p.spin <= 0;
   const thr = control ? input.throttle : 0;
   const turn = control ? input.turn : 0;
@@ -2059,9 +2206,9 @@ function updatePlayer(dt, active) {
   if (control && input.fire && p.cooldown <= 0) firePlayer();
   if (p.invuln > 0) p.invuln -= dt;
   if (p.bumpCd > 0) p.bumpCd -= dt;
-  if (p.power) {
-    p.powerTime -= dt;
-    if (p.powerTime <= 0) p.power = null;
+  // Power-up clocks only run while the wave does.
+  if (G.state === 'play') {
+    for (const [id, pw] of Object.entries(G.powers)) if ((pw.t -= dt) <= 0) delete G.powers[id];
   }
   p.recoil = Math.max(0, p.recoil - dt * 6);
 
@@ -2084,6 +2231,11 @@ function updatePlayer(dt, active) {
   hull.position.y = 0.8 + Math.sin(G.stateTime * 40) * 0.025 * Math.min(1, Math.abs(p.speed) / 8);
   m.userData.barrel.position.z = 1.55 - p.recoil * 0.45;
   m.visible = p.invuln > 0 ? Math.floor(p.invuln * 14) % 2 === 0 : true;
+  shieldMesh.visible = G.shield > 0 && G.state !== 'over' && G.state !== 'title';
+  if (shieldMesh.visible) {
+    shieldMesh.position.set(p.x, 1.2, p.z);
+    shieldMesh.material.opacity = 0.12 + Math.sin(G.stateTime * 4) * 0.04 + (G.shield - 1) * 0.05;
+  }
 }
 
 // One puff of dust off the back of a tread. Local +X is (hz, -hx) in world space, local +Z is (hx, hz).
@@ -2278,6 +2430,8 @@ const ICONS = {
   armor:    { fill: true, d: 'M12 2l9 3.5V11c0 5.5-4 9.5-9 11-5-1.5-9-5.5-9-11V5.5z' },
   drones:   { d: 'M19 12a7 7 0 1 1-14 0a7 7 0 1 1 14 0', d2: 'M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M15.5 6a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0' },
   pulse:    { d: 'M14 12a2 2 0 1 1-4 0a2 2 0 1 1 4 0M17.5 12a5.5 5.5 0 1 1-11 0a5.5 5.5 0 1 1 11 0M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0' },
+  clock:    { d: 'M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0M12 6.5V12l3.5 2.5' },
+  combo:    { d: 'M9 15l6-6M10.5 6.5l1.8-1.8a4 4 0 0 1 5.7 5.7l-1.8 1.8M13.5 17.5l-1.8 1.8a4 4 0 0 1-5.7-5.7l1.8-1.8' },
 };
 function iconSvg(id) {
   const ic = ICONS[id];
@@ -2414,6 +2568,8 @@ function iconTex(id, bg) {
 }
 const boostMat = {};
 for (const [id, b] of Object.entries(BOOSTS)) boostMat[id] = lam('#ffffff', { map: b.glyph ? letterTex(b.glyph, b.color) : iconTex(b.icon, b.color), emissive: '#222222' });
+const powerMat = {};
+for (const [id, pw] of Object.entries(POWERS)) powerMat[id] = lam('#ffffff', { map: iconTex(pw.icon, pw.color), emissive: '#222222' });
 
 // Exit gate, entrance pad, shield bubble, escort drones, EMP ring.
 const padGeo = new THREE.PlaneGeometry(7, 7);
@@ -3378,13 +3534,16 @@ function graze(b) {
   if (G.stateTime - RG.lastGraze > 1.5) { RG.lastGraze = G.stateTime; popup('GRAZE', player.x, 3, player.z, 'time'); }
 }
 
+// Recovery time after a hit shrinks as the mazes go deeper, so a big build still has to dodge.
+const hurtGrace = (d = RG.depth) => Math.max(0.6, 2 - 0.07 * (d - 1));
+const blockGrace = (d = RG.depth) => Math.max(0.35, 0.9 - 0.025 * (d - 1));
 function rogueHurt() {
   const p = player;
   if (p.invuln > 0 || RG.dashT > 0 || G.state !== 'play') return;
   if (RG.armor > 0) {
     RG.armor--;
     RG.armorT = RG.st.armorRecharge;
-    p.invuln = 0.9;
+    p.invuln = blockGrace();
     clearBulletsNear(p.x, p.z, 4.5);
     flash(p.x, 1.4, p.z, 3.4, '#56e8ff', 0.3);
     popup('BLOCKED', p.x, 3, p.z, 'bank');
@@ -3393,7 +3552,7 @@ function rogueHurt() {
     return;
   }
   RG.hearts--;
-  p.invuln = 2;
+  p.invuln = hurtGrace();
   clearBulletsNear(p.x, p.z, 6);
   burst(p.x, 1.4, p.z, ['#f2c53d', '#ff6a2b', '#ffffff'], 12, 9, 0.35);
   flash(p.x, 1.4, p.z, 3, '#ff6a2b', 0.3);
@@ -3662,7 +3821,7 @@ function rogueDeath() {
   addShake(1.3);
   audio.boom(1.6);
   audio.over();
-  banner('DESTROYED', `MAZE ${RG.depth} · LEVEL ${RG.level}`, 1.5);
+  banner(G.forfeit ? 'FORFEIT' : 'DESTROYED', `MAZE ${RG.depth} · LEVEL ${RG.level}`, 1.5);
   ui.touch.hidden = true;
   releaseAllPointers();
 }
@@ -3705,8 +3864,24 @@ function rollChoices(kind) {
   while (out.length < 3) out.push(out.length % 2 ? { kind: 'repair' } : { kind: 'cache' });
   return out;
 }
+// Arcade: three different perks that still have ranks to give.
+function rollPerks() {
+  const pool = Object.keys(PERKS).filter((id) => G.perks[id] < (PERKS[id].max ?? Infinity)).map((id) => ({ kind: 'perk', id, w: 10 }));
+  const out = [];
+  while (out.length < 3 && pool.length) out.push(takeWeighted(pool));
+  while (out.length < 3) out.push({ kind: 'points' });
+  return out;
+}
 // What a card says: the step it gives, and what changes from now to after.
 function cardInfo(c) {
+  if (c.kind === 'perk') {
+    const s = PERKS[c.id], r = G.perks[c.id] + 1, max = s.max ?? Infinity;
+    return {
+      icon: s.icon, color: s.color, tag: r === 1 ? 'NEW PERK' : `PERK · RANK ${r}`, name: s.name, desc: s.desc,
+      change: `${r > 1 ? s.fx(r - 1) : 'none'} → ${s.fx(r)}`, rank: r, max: Number.isFinite(max) ? max : 0,
+    };
+  }
+  if (c.kind === 'points') return { icon: 'salvage', color: '#ffe14f', tag: 'BONUS', name: 'Score Bonus', desc: `+${(1000 * G.wave).toLocaleString()} points`, change: '', rank: 0, max: 0 };
   if (c.kind === 'skill') {
     const s = SKILLS[c.id], r = RG.skills[c.id] + 1, max = skillMax(c.id);
     return {
@@ -3743,17 +3918,23 @@ function renderCards() {
     box.appendChild(b);
   });
   const rr = $('btnReroll');
-  rr.hidden = RG.rerolls <= 0;
+  rr.hidden = luKind === 'perk' || RG.rerolls <= 0;
   rr.textContent = `REROLL · ${RG.rerolls} LEFT`;
 }
 function openLevelUp(kind, newSlot = false) {
   luKind = kind;
   luNewSlot = newSlot;
-  luChoices = rollChoices(kind);
-  $('luTitle').textContent = kind === 'crate' ? 'GEAR CRATE' : `LEVEL ${RG.level - RG.pending + 1}`;
-  $('luSub').textContent = kind === 'crate'
-    ? (newSlot ? `NEW GEAR SLOT · ${RG.equip.length} OF ${RG.slots} USED` : `CHOOSE YOUR GEAR · ${RG.equip.length} OF ${RG.slots} SLOTS USED`)
-    : `CHOOSE ONE · GEAR SLOTS ${RG.equip.length} OF ${RG.slots}`;
+  if (kind === 'perk') {
+    luChoices = rollPerks();
+    $('luTitle').textContent = 'PICK A PERK';
+    $('luSub').textContent = `WAVE ${G.wave} CLEAR · PERKS LAST THE WHOLE RUN`;
+  } else {
+    luChoices = rollChoices(kind);
+    $('luTitle').textContent = kind === 'crate' ? 'GEAR CRATE' : `LEVEL ${RG.level - RG.pending + 1}`;
+    $('luSub').textContent = kind === 'crate'
+      ? (newSlot ? `NEW GEAR SLOT · ${RG.equip.length} OF ${RG.slots} USED` : `CHOOSE YOUR GEAR · ${RG.equip.length} OF ${RG.slots} SLOTS USED`)
+      : `CHOOSE ONE · GEAR SLOTS ${RG.equip.length} OF ${RG.slots}`;
+  }
   renderCards();
   renderStrip($('luBuild'), false);
   hideBanner();
@@ -3765,7 +3946,7 @@ function openLevelUp(kind, newSlot = false) {
   audio.levelup();
 }
 function rerollCards() {
-  if (G.state !== 'levelup' || RG.rerolls <= 0 || performance.now() - luOpenAt < 300) return;
+  if (G.state !== 'levelup' || luKind === 'perk' || RG.rerolls <= 0 || performance.now() - luOpenAt < 300) return;
   RG.rerolls--;
   luChoices = rollChoices(luKind);
   renderCards();
@@ -3775,6 +3956,7 @@ function chooseUpgrade(i) {
   if (G.state !== 'levelup' || performance.now() - luOpenAt < 450) return;   // ignore taps carried over from play
   const c = luChoices[i];
   if (!c) return;
+  if (luKind === 'perk') return choosePerk(c);
   if (c.kind === 'skill') { RG.skills[c.id]++; if (c.id === 'plating') RG.hearts++; }
   else if (c.kind === 'equip') {
     const own = RG.equip.find((e) => e.id === c.id);
@@ -3793,15 +3975,31 @@ function chooseUpgrade(i) {
   if (luKind === 'level') RG.pending--;
   flash(player.x, 1.4, player.z, 4, info.color, 0.35);
 }
+function choosePerk(c) {
+  const info = cardInfo(c);
+  if (c.kind === 'perk') G.perks[c.id]++;
+  else G.score += 1000 * G.wave;
+  arcadeStats();
+  ui.levelup.hidden = true;
+  startWave(G.wave + 1);
+  popup(info.name.toUpperCase(), player.x, 4, player.z, 'big', c.kind === 'perk' ? PERKS[c.id].fx(G.perks[c.id]) : '');
+}
 $('cards').addEventListener('click', (e) => {
   const b = e.target.closest('button.upg');
   if (b) chooseUpgrade(+b.dataset.i);
 });
 $('btnReroll').addEventListener('click', rerollCards);
 
-// Everything the tank carries, gear first.
+// Everything the tank carries, gear first. In Arcade, the perks.
 function buildRows(skillsOnly = false) {
   const rows = [];
+  if (G.mode !== 'rogue') {
+    for (const id of Object.keys(PERKS)) {
+      const r = G.perks[id];
+      if (r) rows.push({ id: PERKS[id].icon, color: PERKS[id].color, name: PERKS[id].name, rank: `RANK ${r}`, short: String(r), fx: PERKS[id].fx(r) });
+    }
+    return rows;
+  }
   if (!skillsOnly) {
     for (const e of RG.equip) {
       const q = EQUIP[e.id];
@@ -3830,29 +4028,54 @@ function renderStrip(el, skillsOnly) {
 }
 // Pause screen: the full loadout with what each piece is doing right now.
 function renderLoadout() {
-  const st = RG.st;
-  $('loStats').textContent = `${st.fireRate.toFixed(1)} SHOTS/S · ${Math.round(st.damage)} DAMAGE · ${st.shots} PER VOLLEY · ${Math.round(st.crit * 100)}% CRIT · SPEED ${st.moveSpeed.toFixed(1)}`;
-  const el = $('loadout'), rows = buildRows();
+  const el = $('loadout');
   el.textContent = '';
-  if (!rows.length) {
-    const p = document.createElement('p');
-    p.className = 'lo-empty';
-    p.textContent = 'No upgrades yet. Collect experience orbs to level up.';
-    el.appendChild(p);
-    return;
+  const sub = (text) => { const d = document.createElement('div'); d.className = 'lo-sub'; d.textContent = text; el.appendChild(d); };
+  let rows;
+  if (G.mode === 'rogue') {
+    const st = RG.st;
+    $('loStats').textContent = `${st.fireRate.toFixed(1)} SHOTS/S · ${Math.round(st.damage)} DAMAGE · ${st.shots} PER VOLLEY · ${Math.round(st.crit * 100)}% CRIT · SPEED ${st.moveSpeed.toFixed(1)} · HIT RECOVERY ${hurtGrace().toFixed(1)} S`;
+    rows = buildRows();
+    if (!rows.length) {
+      const p = document.createElement('p');
+      p.className = 'lo-empty';
+      p.textContent = 'No upgrades yet. Collect experience orbs to level up.';
+      el.appendChild(p);
+      return;
+    }
+  } else {
+    const st = G.st;
+    $('loStats').textContent = `${(1 / (G.cfg.fireCooldown * st.fireMult)).toFixed(1)} SHOTS/S · ${st.bounces} BOUNCE${st.bounces > 1 ? 'S' : ''} · TOP SPEED ${(G.cfg.playerSpeed * st.speedMult).toFixed(1)} · POWER-UPS LAST ${st.powerTime.toFixed(1)} S`;
+    const live = Object.entries(G.powers).map(([id, pw]) => {
+      const P = POWERS[id];
+      return { id: P.icon, color: P.color, name: P.name + ROMAN[pw.lvl], rank: `${Math.ceil(pw.t)} S LEFT`, fx: P.desc[pw.lvl - 1] };
+    });
+    if (G.shield) live.push({ id: 'armor', color: POWERS.shield.color, name: 'SHIELD', rank: `${G.shield} CHARGE${G.shield > 1 ? 'S' : ''}`, fx: 'Each charge blocks one hit' });
+    if (live.length) sub('POWER-UPS');
+    for (const r of live) addLoRow(el, r);
+    rows = buildRows();
+    sub('PERKS');
+    if (!rows.length) {
+      const p = document.createElement('p');
+      p.className = 'lo-empty';
+      p.textContent = 'No perks yet. Clear every second wave to pick one.';
+      el.appendChild(p);
+      return;
+    }
   }
-  for (const r of rows) {
-    const row = document.createElement('div');
-    row.className = 'lo-row';
-    const add = (cls, text) => { const s2 = document.createElement('span'); s2.className = cls; s2.textContent = text; row.appendChild(s2); return s2; };
-    const ico = add('ico', '');
-    ico.style.background = r.color;
-    ico.innerHTML = iconSvg(r.id);
-    add('nm', r.name);
-    add('rk', r.rank);
-    add('fx', r.fx);
-    el.appendChild(row);
-  }
+  for (const r of rows) addLoRow(el, r);
+}
+function addLoRow(el, r) {
+  const row = document.createElement('div');
+  row.className = 'lo-row';
+  const add = (cls, text) => { const s2 = document.createElement('span'); s2.className = cls; s2.textContent = text; row.appendChild(s2); return s2; };
+  const ico = add('ico', '');
+  ico.style.background = r.color;
+  ico.innerHTML = iconSvg(r.id);
+  add('nm', r.name);
+  add('rk', r.rank);
+  add('fx', r.fx);
+  el.appendChild(row);
 }
 
 // ============================================================
@@ -4174,7 +4397,7 @@ function showRogueOver() {
   const isBest = RG.depth > best.depth || (RG.depth === best.depth && RG.level > best.level);
   if (isBest) store.set('rogueBest', { depth: RG.depth, level: RG.level });
   const chips = buildRows().map((r) => ({ text: `${r.name} ${r.rank}`, color: r.color }));
-  showOver('DESTROYED', [['MAZE', RG.depth], ['LEVEL', RG.level], ['KILLS', RG.kills], ['TIME', fmtTime(RG.time)], ['BEST STREAK', RG.bestStreak], ['GRAZES', RG.grazes]],
+  showOver(G.forfeit ? 'FORFEIT' : 'DESTROYED', [['MAZE', RG.depth], ['LEVEL', RG.level], ['KILLS', RG.kills], ['TIME', fmtTime(RG.time)], ['BEST STREAK', RG.bestStreak], ['GRAZES', RG.grazes]],
     isBest ? 'NEW DEEPEST RUN!' : `DEEPEST <b>MAZE ${best.depth}</b>`, isBest, chips);
 }
 
@@ -4234,16 +4457,42 @@ function updateHud() {
   if (ui.combo.hidden === showCombo) ui.combo.hidden = !showCombo;
   if (showCombo) {
     setText(ui.comboText, 'combo', `COMBO x${Math.min(G.combo, 8)}`);
-    ui.comboBar.style.transform = `scaleX(${(G.comboTimer / COMBO_WINDOW).toFixed(3)})`;
+    ui.comboBar.style.transform = `scaleX(${(G.comboTimer / G.st.comboWindow).toFixed(3)})`;
   }
-  const hasPower = !!player.power;
-  if (ui.power.hidden === hasPower) ui.power.hidden = !hasPower;
-  if (hasPower) {
-    setText(ui.powerName, 'power', POWER[player.power].name);
-    ui.powerBar.style.transform = `scaleX(${(player.powerTime / 8).toFixed(3)})`;
-    ui.powerBar.style.background = POWER[player.power].color;
-  }
+  updatePowerChips();
+  const perkSig = Object.values(G.perks).join(',');
+  if (perkSig !== G.perkSig) { G.perkSig = perkSig; renderStrip(ui.perks, true); }
   drawRadar();
+}
+
+// Running power-ups under the timer: icon, level pips, and a sweep for the time left. Shield charges sit at the end.
+function updatePowerChips() {
+  const ids = Object.keys(G.powers);
+  if (G.shield) ids.push('shield');
+  const sig = ids.map((id) => id + (id === 'shield' ? G.shield : G.powers[id].lvl)).join(',');
+  if (sig !== hudCache.powerSig) {
+    hudCache.powerSig = sig;
+    ui.powers.textContent = '';
+    for (const id of ids) {
+      const P = POWERS[id], d = document.createElement('div'), lvl = id === 'shield' ? G.shield : G.powers[id].lvl;
+      d.className = 'slot';
+      d.style.background = P.color;
+      d.title = id === 'shield' ? `Shield: ${lvl} charge${lvl > 1 ? 's' : ''}` : `${P.name}${ROMAN[lvl]}: ${P.desc[lvl - 1]}`;
+      d.innerHTML = iconSvg(P.icon);
+      const pips = document.createElement('i');
+      pips.textContent = '•'.repeat(lvl);
+      d.appendChild(pips);
+      ui.powers.appendChild(d);
+    }
+  }
+  ids.forEach((id, i) => {
+    const el = ui.powers.children[i], pw = G.powers[id];
+    if (!el || !pw) return;
+    const v = clamp(pw.t / pw.dur, 0, 1).toFixed(2);
+    if (el.dataset.cd !== v) { el.dataset.cd = v; el.style.setProperty('--cd', v); el.classList.add('charging'); }
+    const ending = pw.t < 2;
+    if (el.classList.contains('ending') !== ending) el.classList.toggle('ending', ending);
+  });
 }
 
 function drawRadar() {
@@ -4265,8 +4514,7 @@ function drawRadar() {
     ctx.fillStyle = t.def.radar;
     ctx.beginPath(); ctx.arc(t.x, t.z, t.type === 'tank' ? 2.6 : 2.1, 0, TAU); ctx.fill();
   }
-  ctx.fillStyle = '#ffffff';
-  for (const p of powerups) ctx.fillRect(p.x - 1.4, p.z - 1.4, 2.8, 2.8);
+  for (const p of powerups) { ctx.fillStyle = POWERS[p.type].color; ctx.fillRect(p.x - 1.6, p.z - 1.6, 3.2, 3.2); }
   ctx.fillStyle = '#ff5a3c';
   for (const b of shells) if (b.owner === 'enemy') ctx.fillRect(b.x - 0.9, b.z - 0.9, 1.8, 1.8);
   ctx.restore();
@@ -4326,7 +4574,11 @@ function updateArcade(dt) {
   const bpm = 112 + Math.min(G.wave - 1, 14) * 5 + (G.state === 'play' && G.timeLeft < 10 ? 16 : 0);
   audio.updateMusic(G.state === 'play' || G.state === 'countdown' || G.state === 'clear', bpm);
 
-  if (G.state === 'clear' && G.stateTime > 2.3) startWave(G.wave + 1);
+  // Every second wave ends with a perk pick; the next wave starts once one is chosen.
+  if (G.state === 'clear' && G.stateTime > 2.3) {
+    if (G.wave % 2 === 0) openLevelUp('perk');
+    else startWave(G.wave + 1);
+  }
   if (G.state === 'over' && G.stateTime > 1.5 && ui.over.hidden) showGameOver();
 }
 
@@ -4384,7 +4636,7 @@ showTitle();
 $('loading').remove();
 requestAnimationFrame((t) => { last = t; frame(t); });
 // Debug handle for poking at the game from the browser console.
-window.__pytank = { G, RG, player, input, pbar, uplink, get targets() { return targets; }, get ebs() { return ebs; }, get pbs() { return pbs; }, startWave, buildMaze };
+window.__pytank = { G, RG, player, input, pbar, uplink, get targets() { return targets; }, get ebs() { return ebs; }, get pbs() { return pbs; }, get powerups() { return powerups; }, startWave, buildMaze, rogueStats, grantPower, hitPlayer, rogueHurt };
 </script>
 </body>
 </html>

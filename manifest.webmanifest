@@ -1,0 +1,15 @@
+{
+  "name": "Pytank",
+  "short_name": "Pytank",
+  "description": "A 3D tank game inspired by Atari Combat, with Arcade and Bullet Rogue modes.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "background_color": "#14172b",
+  "theme_color": "#14172b",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

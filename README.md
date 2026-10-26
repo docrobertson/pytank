@@ -13,7 +13,7 @@ python3 -m http.server 8000
 # then visit http://localhost:8000
 ```
 
-To play on your phone, turn on GitHub Pages for this repo (Settings → Pages → deploy from the `main` branch) and open the Pages URL. On iPhone, Share → Add to Home Screen runs it full screen.
+To play on your phone, turn on GitHub Pages for this repo (Settings → Pages → deploy from the `main` branch) and open the Pages URL. On iPhone, Share → Add to Home Screen runs it full screen with its own pixel-tank icon. If you added it before the icon existed, remove the old shortcut and add it again.
 
 The page loads three.js from the jsDelivr CDN, so the first load needs an internet connection.
 
@@ -40,13 +40,15 @@ A high, north-up camera so you can see shots coming from every side. Your turret
 - **Mazes and the uplink:** each level is a generated maze with an entrance and an exit gate. Stand in the blue uplink zone to charge the gate; holding it draws raiders, so it plays like a short last stand. Power cores are optional: each one keeps spawning enemies, and destroying it charges the uplink by 35%. Wipe out every enemy and the gate opens on its own; either way the uplink collapses once it's no longer needed. A ground arrow by your tank points the way to the uplink, then to the exit. Every fifth maze is a boss fight instead, and beating the boss opens the gate. Clearing a maze repairs a heart, finishing it quickly pays bonus experience, and every orb left on the map flies to you when the exit opens.
 - **Enemies:** crawlers rush you, gunner tanks fire aimed fans, sentries fire rings, spinners spray spirals, heavies lob shells that burst. Gold elites have triple armour and drop triple experience plus a pickup.
 - **Your health:** hearts in the HUD; a bar over your tank (armour charges in cyan) pops up for a few seconds whenever they change. A damaged tank smokes, and at one heart the screen edges glow red.
-- **Bullet hell rules:** your hitbox is much smaller than your tank. Near misses ("grazes") pay a little experience. Dashing makes you briefly untouchable and rams crawlers.
+- **Bullet hell rules:** your hitbox is much smaller than your tank. Near misses ("grazes") pay a little experience.
+- **Dashing** is a burst of speed, not a shield. A shot that catches you mid-dash has a 40% chance to only graze you, but every shot rolls separately, so dashing into a crowd of bullets still ends badly. Crawlers hurt you mid-dash too, unless Battering Ram destroys them first.
 - **Recovery shrinks as you go deeper:** after you lose a heart you're untouchable for 2 seconds in maze 1, falling to 0.6 seconds by maze 21. The short grace after Reactive Armor blocks a hit shrinks the same way. Even a big build has to keep dodging. The pause screen shows your current recovery time.
 - **Kill streaks:** kills less than two seconds apart build a streak that multiplies experience, up to x1.6.
 - **Level-up cards:** pick one of three. Cards show what you have now and what you'll have after. You start with one reroll and earn another for each maze cleared (up to 3 banked).
 - **Skills** are simple steps, most with no cap: Autoloader (+10% fire rate), Heavy Shells (+10% damage), Long Barrel (shell speed and range), Engine Tune (speed), Salvager (experience), Tractor Beam (pickup range), Nitro (dash recharge), Field Repair (heart regeneration) and Battering Ram (dashes damage what they plow through). Gun Sight (crits) caps at 100% and Hull Plating at 10 hearts.
 - **Gear** changes how you fight and fills one of three slots (a fourth comes from the first boss). Each piece upgrades to level 3: Multi-Cannon, Ricochet Rounds, Seeker Shells, Piercing Rounds, Flak Shells, Reactive Armor, Escort Drones and EMP Pulse (wipes nearby shots, hurts and shoves enemies). Gear on a timer shows a cooldown sweep in its slot.
-- **Pickups:** icon cubes in dead ends and from cores are permanent: each adds a skill rank or repairs a heart. From maze 2 a blue supply crate hides in the deepest dead end with a choice of gear; bosses drop a gold crate.
+- **Escort Drones** circle your tank and ram enemies. Each one catches two shots (it turns orange after the first), then breaks, and drones never come back on their own. The gear's level sets how many you can carry (4, 6 or 8), and taking or upgrading it fills you up. Teal drone cubes add two more; they only drop while you carry the gear and have room. The slot shows how many are left.
+- **Pickups:** icon cubes in dead ends and from cores are permanent: each adds a skill rank, repairs a heart or resupplies drones. From maze 2 a blue supply crate hides in the deepest dead end with a choice of gear; bosses drop a gold crate.
 - **Seeing your build:** gear sits in the slots under your hearts and skills show as a row of icons with ranks on wider screens. Pause to see the full loadout with what each piece does right now.
 
 ## Controls
@@ -68,4 +70,4 @@ Your best Arcade score and deepest Rogue maze are saved in the browser.
 
 ## Code
 
-Everything lives in `index.html`: the page, its styles and one module script, with no build step. The only dependency is three.js (r160), loaded from jsDelivr. The script is split into commented sections: shared engine pieces (renderer, models, collision, effects, audio, input), then Arcade, then Bullet Rogue (data, models, maze generation, enemies, player, level-up cards, HUD), then the camera, HUD and main loop.
+Everything lives in `index.html`: the page, its styles and one module script, with no build step. The Home Screen icons are in `icons/` (`icon.svg` is the source; the PNGs are 180, 192 and 512 px renders of it), and `manifest.webmanifest` names the app for Android. The only dependency is three.js (r160), loaded from jsDelivr. The script is split into commented sections: shared engine pieces (renderer, models, collision, effects, audio, input), then Arcade, then Bullet Rogue (data, models, maze generation, enemies, player, level-up cards, HUD), then the camera, HUD and main loop.

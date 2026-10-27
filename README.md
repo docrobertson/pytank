@@ -56,16 +56,17 @@ A high, north-up camera so you can see shots coming from every side. Your turret
 
 ## Controls
 
-| | Desktop | Touch |
-|---|---|---|
-| Drive | W A S D or arrow keys | Put a thumb down (left half in Arcade); the stick appears under it and stays put |
-| Arcade: fire | Space (hold for auto-fire) | Hold anywhere on the right half |
-| Rogue: dash | Space or Shift | Tap a second finger, or the Dash button |
-| Pick a card or perk | 1, 2, 3 or click (R rerolls in Rogue) | Tap |
-| Pause | P or Esc | II button |
-| Sound | M (music + FX → FX only → off) | ♪ button |
+| | Desktop | Touch | Gamepad |
+|---|---|---|---|
+| Drive | W A S D or arrow keys | Put a thumb down (left half in Arcade); the stick appears under it and stays put | Left stick or d-pad |
+| Arcade: fire | Space (hold for auto-fire) | Hold anywhere on the right half | A, RB or RT |
+| Rogue: dash | Space or Shift | Tap a second finger, or the Dash button | A, X or RB |
+| Pick a card or perk | 1, 2, 3 or click (R rerolls in Rogue) | Tap | D-pad to choose, A to pick (Y rerolls) |
+| Menus (title, pause, results) | Click, or Enter to start / play again | Tap | D-pad to choose, A to select; Start starts, plays again or resumes; B resumes |
+| Pause | P or Esc | II button | Start |
+| Sound | M (music + FX → FX only → off) | ♪ button | Back / View |
 
-Gamepads work too: left stick or d-pad to drive, A or a shoulder button to fire (Arcade) or dash (Rogue), Start to pause. On the level-up cards, the d-pad moves between cards, A picks and Y rerolls.
+With a gamepad, every screen shows a gold highlight on the chosen button and a hint line with the buttons to press.
 
 **Pause** shows your loadout. **Forfeit** on the pause screen ends the run and takes you to the results, so your score or depth still counts toward your best (press it twice to confirm).
 

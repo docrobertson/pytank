@@ -168,6 +168,11 @@
   .cta:active { transform: translateY(4px); box-shadow: 0 2px 0 #a8401a; }
   .ghost { width: 100%; padding: 11px; border: 2px solid var(--line); border-radius: 4px; background: transparent; font: 700 13px/1 var(--f-pixel); letter-spacing: 0.14em; }
   .ghost.armed { border-color: var(--hot); color: var(--hot); }
+  /* Controller: a gold highlight on the chosen button, and button hints, once a gamepad has been used. */
+  body.has-pad .pad-sel { outline: 3px solid var(--gold); outline-offset: 3px; }
+  body.has-pad .upg.pad-sel { border-color: var(--gold); outline-offset: 2px; }
+  .pad-hint { display: none; font: 700 10px/1.4 var(--f-pixel); letter-spacing: 0.14em; text-align: center; opacity: 0.75; flex-basis: 100%; }
+  body.has-pad .pad-hint { display: block; }
   .pause-note { margin: -6px 0 0; font: 500 12px/1.35 var(--f-body); text-align: center; opacity: 0.7; }
   .best { font: 700 12px/1 var(--f-pixel); letter-spacing: 0.14em; text-align: center; opacity: 0.85; }
   .best b { color: var(--gold); }
@@ -406,6 +411,7 @@
           <span class="mode-desc">Your turret fires itself. Dodge the bullet storm, hold the uplink to open each exit, and build up your tank as you dive deeper.</span>
         </button>
       </div>
+      <div class="pad-hint">D-PAD TO CHOOSE · A TO START</div>
       <div class="controls only-keys">
         <span class="k"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Drive (arrow keys work too)</span>
         <span class="k"><kbd>SPACE</kbd></span><span>Arcade: fire &middot; Rogue: dash</span>
@@ -431,6 +437,7 @@
       <button id="btnResume" class="cta">RESUME</button>
       <button id="btnForfeit" class="ghost">FORFEIT</button>
       <p class="pause-note">Forfeit ends the run and keeps your results.</p>
+      <div class="pad-hint">D-PAD TO CHOOSE · A TO SELECT · B TO RESUME</div>
     </div>
   </div>
 </section>
@@ -444,6 +451,7 @@
       <div id="oBest" class="best"></div>
       <button id="btnAgain" class="cta">PLAY AGAIN</button>
       <button id="btnMenu" class="ghost">TITLE</button>
+      <div class="pad-hint">D-PAD TO CHOOSE · A TO SELECT</div>
     </div>
   </div>
 </section>
@@ -456,6 +464,7 @@
     <div class="lu-foot">
       <div id="luBuild" class="strip"></div>
       <button id="btnReroll" class="ghost reroll">REROLL</button>
+      <span id="luPad" class="pad-hint">D-PAD TO CHOOSE · A TO PICK</span>
     </div>
   </div>
 </section>
@@ -1358,7 +1367,10 @@ const keys = new Set();
 const input = { throttle: 0, turn: 0, fire: false, mx: 0, my: 0, dash: false };
 const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const fireTouch = { id: null };
-const gpad = { thr: 0, turn: 0, fire: false, start: false, startPrev: false, mx: 0, my: 0, dash: false, dashPrev: false, nav: 0 };
+const gpad = {
+  thr: 0, turn: 0, fire: false, mx: 0, my: 0, dash: false, dashPrev: false, prev: {}, connected: false,
+  menu: '', sel: 0, nav: 0, navAt: 0, lock: false, openedAt: 0,   // controller menu state, see padNavigate()
+};
 let isTouch = matchMedia('(pointer: coarse)').matches;
 
 const GAME_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyJ', 'KeyK']);
@@ -1455,10 +1467,12 @@ document.addEventListener('dblclick', (e) => e.preventDefault());
 
 function pollGamepad() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  gpad.thr = gpad.turn = gpad.mx = gpad.my = 0; gpad.fire = gpad.start = gpad.dash = false;
-  let nav = 0;
+  gpad.thr = gpad.turn = gpad.mx = gpad.my = 0; gpad.fire = gpad.dash = false;
+  const held = { a: false, b: false, y: false, back: false, start: false };
+  let nav = 0, any = false;
   for (const gp of pads) {
     if (!gp) continue;
+    any = true;
     const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, len = Math.hypot(ax, ay);
     gpad.turn = shape(ax, 0.18, 1.8);
     gpad.thr = shape(-ay, 0.2, 1.3);
@@ -1470,27 +1484,65 @@ function pollGamepad() {
     if (b(15)) gpad.turn = gpad.mx = 1;
     gpad.fire = b(0) || b(5) || b(7);
     gpad.dash = b(0) || b(2) || b(5);
-    gpad.y = b(3);
-    gpad.start = b(9);
-    nav = b(14) || ax < -0.6 || b(12) ? -1 : b(15) || ax > 0.6 || b(13) ? 1 : 0;
+    held.a = b(0); held.b = b(1); held.y = b(3); held.back = b(8); held.start = b(9);
+    // Menu direction: up or left steps back, down or right steps on.
+    nav = b(12) || b(14) || ay < -0.6 || ax < -0.6 ? -1 : b(13) || b(15) || ay > 0.6 || ax > 0.6 ? 1 : 0;
     break;
   }
-  // Level-up cards: move between them, A to choose. Otherwise A dashes in Bullet Rogue.
-  if (G.state === 'levelup') {
-    const cards = [...document.querySelectorAll('#cards .upg')], at = cards.indexOf(document.activeElement);
-    if (nav && nav !== gpad.nav) cards[clamp(at + nav, 0, cards.length - 1)]?.focus({ preventScroll: true });
-    if (gpad.dash && !gpad.dashPrev) document.activeElement?.click();
-    if (gpad.y && !gpad.yPrev) rerollCards();
-  } else if (G.mode === 'rogue' && gpad.dash && !gpad.dashPrev) input.dash = true;
-  gpad.nav = nav;
-  gpad.dashPrev = gpad.dash;
-  gpad.yPrev = gpad.y;
-  if (gpad.start && !gpad.startPrev) {
-    if (G.state === 'title') startGame(G.lastMode);
-    else if (G.state === 'over' && !ui.over.hidden) startGame(G.mode);
-    else togglePause();
+  if (any !== gpad.connected) { gpad.connected = any; document.body.classList.toggle('has-pad', any); }
+  const pressed = (k) => held[k] && !gpad.prev[k];
+  const menu = padMenu();
+  if (menu) padNavigate(menu, nav, pressed);
+  else {
+    gpad.menu = '';
+    if (G.mode === 'rogue' && gpad.dash && !gpad.dashPrev) input.dash = true;
+    if (pressed('start')) togglePause();
   }
-  gpad.startPrev = gpad.start;
+  if (pressed('back')) cycleSound();
+  gpad.dashPrev = gpad.dash;
+  gpad.prev = held;
+}
+
+// Controller menus. Whatever screen is up, the d-pad or left stick moves a gold highlight over its buttons and A
+// presses the highlighted one. Start starts a game, plays again or resumes; B resumes from pause; Y rerolls cards.
+function padMenu() {
+  if (G.state === 'levelup') {
+    const items = [...$('cards').querySelectorAll('.upg')];
+    if (!$('btnReroll').hidden) items.push($('btnReroll'));
+    return { id: 'cards' + luOpenAt, items, start: 0, wait: 470, cards: true };
+  }
+  if (G.state === 'paused') return { id: 'pause', items: [$('btnResume'), $('btnForfeit')], start: 0, wait: 250, back: resume };
+  if (!ui.over.hidden) return { id: 'over', items: [$('btnAgain'), $('btnMenu')], start: 0, wait: 700 };
+  if (!ui.title.hidden) return { id: 'title', items: [$('btnArcade'), $('btnRogue')], start: G.lastMode === 'rogue' ? 1 : 0, wait: 250 };
+  return null;
+}
+function padNavigate(menu, nav, pressed) {
+  const now = performance.now(), n = menu.items.length;
+  if (menu.id !== gpad.menu) {
+    // A new screen: highlight its default, and ignore a stick that was already held when it opened.
+    gpad.menu = menu.id; gpad.sel = menu.start; gpad.openedAt = now; gpad.lock = nav !== 0;
+  }
+  if (!n) return;
+  if (gpad.lock && !nav) gpad.lock = false;
+  if (!gpad.lock && nav && (nav !== gpad.nav || now >= gpad.navAt)) {
+    gpad.sel = (gpad.sel + nav + n) % n;
+    gpad.navAt = now + (nav !== gpad.nav ? 380 : 170);   // hold to repeat
+    audio.tone('square', 520, 520, 0.035, 0.035);
+  }
+  gpad.nav = nav;
+  gpad.sel = Math.min(gpad.sel, n - 1);
+  const el = menu.items[gpad.sel];
+  if (!el.classList.contains('pad-sel')) {
+    for (const o of document.querySelectorAll('.pad-sel')) o.classList.remove('pad-sel');
+    el.classList.add('pad-sel');
+    if (gpad.connected) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'nearest' }); }
+  }
+  // Backing out of pause works at once. Choosing waits a moment after a screen opens, so a press meant for the
+  // game (fire, dash) doesn't pick something by accident.
+  if (menu.back && (pressed('b') || pressed('start'))) return menu.back();
+  if (now - gpad.openedAt < menu.wait) return;
+  if (pressed('a') || (pressed('start') && !menu.cards)) el.click();
+  else if (pressed('y') && menu.cards) rerollCards();
 }
 
 // Dead zone, then a power curve so small deflections stay gentle.
@@ -4094,6 +4146,7 @@ function renderCards() {
   const rr = $('btnReroll');
   rr.hidden = luKind === 'perk' || RG.rerolls <= 0;
   rr.textContent = `REROLL · ${RG.rerolls} LEFT`;
+  $('luPad').textContent = rr.hidden ? 'D-PAD TO CHOOSE · A TO PICK' : 'D-PAD TO CHOOSE · A TO PICK · Y TO REROLL';
 }
 function openLevelUp(kind, newSlot = false) {
   luKind = kind;

@@ -1876,7 +1876,7 @@ function resetPlayer() {
 // Target Rush: a bonus stage after every fourth wave. A packed, open arena, double points, Rapid Fire and
 // Spread Shot on the house, and no way to lose. Clear every target for a Perfect bonus.
 const RUSH_TIME = 15;
-const RUSH_KEEP = 2, RUSH_CARRY = 8;   // power-ups that survive a rush, and the seconds they keep (about 4 into the next wave)
+const RUSH_KEEP = 2, RUSH_CARRY = 4;   // power-ups that survive a rush, and the seconds they keep into the next wave
 function startRush() {
   G.rush = true;
   G.rushes++;
@@ -1895,8 +1895,8 @@ function startRush() {
   G.comboTimer = 0;
   G.waveHits = 0;
   for (const id of ['rapid', 'spread']) {
-    const pw = G.powers[id], t = RUSH_TIME + 1.5;   // clocks run through the countdown
-    G.powers[id] = { lvl: Math.max(2, pw ? pw.lvl : 0), t: Math.max(t, pw ? pw.t : 0), dur: Math.max(t, pw ? pw.dur : 0) };
+    const pw = G.powers[id];
+    G.powers[id] = { lvl: Math.max(2, pw ? pw.lvl : 0), t: Math.max(RUSH_TIME, pw ? pw.t : 0), dur: Math.max(RUSH_TIME, pw ? pw.dur : 0) };
   }
   setState('countdown');
   ui.touch.hidden = !isTouch;
@@ -2452,8 +2452,8 @@ function updatePlayer(dt, active) {
   else if (control && input.fire && p.cooldown <= 0) firePlayer();
   if (p.invuln > 0) p.invuln -= dt;
   if (p.bumpCd > 0) p.bumpCd -= dt;
-  // Power-up clocks run through the wave and the breaks between waves (not the perk pick), so a stack fades out.
-  if (G.state === 'play' || G.state === 'clear' || G.state === 'countdown') {
+  // Power-up clocks only run while you can drive: they stop when a wave is cleared and pick up when the next one starts.
+  if (G.state === 'play') {
     for (const [id, pw] of Object.entries(G.powers)) if ((pw.t -= dt) <= 0) delete G.powers[id];
   }
   p.recoil = Math.max(0, p.recoil - dt * 6);

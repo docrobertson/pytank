@@ -185,6 +185,9 @@
   #over .card-body, #pause .card-body { padding-top: 22px; }
   /* ---------- Mode select ---------- */
   body.mode-rogue .only-arcade, body:not(.mode-rogue) .only-rogue { display: none !important; }
+  /* Gauntlet uses the Arcade HUD, minus the wave panel and perks, plus its own distance panel and boss bar. */
+  body:not(.mode-gauntlet) .only-gauntlet, body.mode-gauntlet .no-gauntlet { display: none !important; }
+  .mode.gauntlet .mode-name { color: var(--gold); }
   .modes { display: grid; gap: 10px; }
   .mode {
     display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 6px 12px; text-align: left;
@@ -221,8 +224,8 @@
   #rDepth { font: 34px/1 var(--f-display); text-shadow: 0 3px 0 var(--shade); white-space: nowrap; }
   #rGoal { font: 700 11px/1 var(--f-pixel); letter-spacing: 0.14em; color: var(--gold); text-shadow: 0 2px 0 var(--shade); white-space: nowrap; }
   #rGoal.open { color: var(--mint); animation: blink 0.6s steps(2, jump-none) infinite; }
-  #bossBar { width: min(240px, 42vw); height: 8px; background: var(--panel); border: 1px solid var(--line); }
-  #bossFill { display: block; height: 100%; background: var(--violet); transform-origin: left; }
+  #bossBar, #gBossBar { width: min(240px, 42vw); height: 8px; background: var(--panel); border: 1px solid var(--line); }
+  #bossFill, #gBossFill { display: block; height: 100%; background: var(--violet); transform-origin: left; }
   #dashBtn {
     position: absolute; width: 96px; height: 96px; border-radius: 50%; pointer-events: none;
     right: max(28px, calc(env(safe-area-inset-right, 0px) + 16px)); bottom: calc(40px + env(safe-area-inset-bottom, 0px));
@@ -295,7 +298,7 @@
     #rDepth { font-size: 27px; }
     .hearts { font-size: 15px; white-space: normal; overflow-wrap: anywhere; max-width: 112px; }
     #rGoal { font-size: 10px; letter-spacing: 0.08em; }
-    #bossBar { width: 28vw; }
+    #bossBar, #gBossBar { width: 28vw; }
     .lo-row .nm { font-size: 13px; }
     .lo-row .fx { font-size: 11px; }
     .slot { width: 28px; height: 28px; }
@@ -354,7 +357,7 @@
         <div id="score">000000</div>
         <div id="combo" hidden><span id="comboText">COMBO x2</span><i id="comboBar"></i></div>
       </div>
-      <div id="perkRow" class="strip hud-strip only-arcade"></div>
+      <div id="perkRow" class="strip hud-strip only-arcade no-gauntlet"></div>
       <div class="plate only-rogue">
         <div class="hearts"><span id="heartsFull"></span><span id="heartsEmpty" class="empty"></span><span id="armorPips" class="armor"></span></div>
         <div class="xp-row"><span>LV <b id="rLevel">1</b></span><i><b id="rXp"></b></i></div>
@@ -369,6 +372,7 @@
     <div class="cell mid">
       <div id="timer" class="only-arcade">30</div>
       <div id="powers" class="slots only-arcade"></div>
+      <div id="gBossBar" class="only-gauntlet" hidden><b id="gBossFill"></b></div>
       <div class="rogue-mid only-rogue">
         <div id="rDepth">MAZE 1</div>
         <div id="rGoal">CORES 0/2</div>
@@ -376,7 +380,8 @@
       </div>
     </div>
     <div class="cell right">
-      <div class="plate wave-row only-arcade"><span><span id="waveLbl">WAVE</span> <b id="wave">1</b></span><span><b id="left">6</b> LEFT</span><span id="shotsBox">SHOTS <b id="shots">0/12</b></span></div>
+      <div class="plate wave-row only-gauntlet"><span id="gDist">FORTRESS <b>372</b>M</span><span>KILLS <b id="gKills">0</b></span></div>
+      <div class="plate wave-row only-arcade no-gauntlet"><span><span id="waveLbl">WAVE</span> <b id="wave">1</b></span><span><b id="left">6</b> LEFT</span><span id="shotsBox">SHOTS <b id="shots">0/12</b></span></div>
       <div class="plate wave-row only-rogue"><span>KILLS <b id="rKills">0</b></span><span id="rStreak" class="streak" hidden></span><span id="rStreakX" class="streak" hidden></span></div>
       <canvas id="radar" width="112" height="112" aria-label="Map"></canvas>
     </div>
@@ -410,16 +415,21 @@
           <span class="mode-best">DEEPEST <b id="bestRogue">&ndash;</b></span>
           <span class="mode-desc">Your turret fires itself. Dodge the bullet storm, hold the uplink to open each exit, and build up your tank as you dive deeper.</span>
         </button>
+        <button id="btnGauntlet" class="mode gauntlet">
+          <span class="mode-name">GAUNTLET</span>
+          <span class="mode-best">BEST <b id="bestGauntlet">&ndash;</b></span>
+          <span class="mode-desc">Fight down one long, narrow front line through barricades, turrets and tanks, then destroy the fortress tank at the end before time runs out.</span>
+        </button>
       </div>
       <div class="pad-hint">D-PAD TO CHOOSE · A TO START</div>
       <div class="controls only-keys">
         <span class="k"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Drive (arrow keys work too)</span>
-        <span class="k"><kbd>SPACE</kbd></span><span>Arcade: fire &middot; Rogue: dash</span>
+        <span class="k"><kbd>SPACE</kbd></span><span>Arcade, Gauntlet: fire &middot; Rogue: dash</span>
         <span class="k"><kbd>P</kbd><kbd>M</kbd></span><span>Pause, sound</span>
       </div>
       <div class="controls only-touch">
-        <span class="k"><kbd>THUMB</kbd></span><span>Drag to drive (left half in Arcade)</span>
-        <span class="k"><kbd>TAP</kbd></span><span>Arcade: hold the right half to fire &middot; Rogue: tap a second finger to dash</span>
+        <span class="k"><kbd>THUMB</kbd></span><span>Drag to drive (left half in Arcade and Gauntlet)</span>
+        <span class="k"><kbd>TAP</kbd></span><span>Arcade, Gauntlet: hold the right half to fire &middot; Rogue: tap a second finger to dash</span>
       </div>
     </div>
   </div>
@@ -518,7 +528,8 @@ const SHELL_SPEED = 54;
 const SHELL_LIFE = 1.5;
 const ENEMY_SHELL_SPEED = 24;
 const COMBO_WINDOW = 2.5;
-const SHOTS_PER_TARGET = 2;   // clear a wave within this many shots per target for the Sharpshooter bonus
+const SHOTS_PER_TARGET = 2;   // clear a wave within this many shots per target (per hit point) for the Sharpshooter bonus
+const BLAST_DMG = 3;          // what a barrel blast does to anything armoured
 const SPAWN = { x: 0, z: -38 };
 
 // Tank handling. Speeds in units/s, accelerations in units/s², turning in rad/s and rad/s².
@@ -561,18 +572,25 @@ function waveConfig(w) {
   const tanks = w >= 4 ? Math.min(1 + Math.floor((w - 4) / 2), 6) : 0;
   const drones = w >= 3 ? Math.min(1 + Math.floor((w - 3) * 0.75), 8) : 0;
   const barrels = Math.min(1 + Math.floor(w / 2) + (w >= 2 ? 1 : 0), 6);
-  const crates = Math.max(2, n - tanks - drones - barrels);
+  // Tougher boxes from wave 4 (steel) and 7 (armoured containers); veteran tanks from wave 6.
+  const steel = w >= 4 ? Math.min(1 + Math.floor((w - 4) * 0.8), 8) : 0;
+  const vaults = w >= 7 ? Math.min(1 + Math.floor((w - 7) / 3), 4) : 0;
+  const tankHp = w >= 6 ? Math.min(2 + Math.floor((w - 6) / 3), 5) : 1;
+  const crates = Math.max(2, n - tanks - drones - barrels - steel - vaults);
+  const work = crates + barrels + drones + steel * 1.3 + vaults * 2 + tanks * (0.6 + 0.4 * tankHp);   // armour needs some extra time
   return {
-    crates, barrels, drones, tanks,
-    total: crates + barrels + drones + tanks,
-    time: Math.round(12 + n * Math.max(1.7, 3.1 - (w - 1) * 0.13)),
+    crates, barrels, drones, tanks, steel, vaults, tankHp,
+    total: crates + barrels + drones + tanks + steel + vaults,
+    time: Math.round(12 + work * Math.max(1.7, 3.1 - (w - 1) * 0.13)),
     playerSpeed: Math.min(15 + (w - 1) * 0.6, 22),
     turnRate: Math.min(2.5 + (w - 1) * 0.04, 3.0),
     fireCooldown: Math.max(0.17, 0.32 - (w - 1) * 0.012),
     droneSpeed: Math.min(4.5 + w * 0.7, 15),
     tankSpeed: Math.min(4 + w * 0.45, 10),
     tankShoot: w >= 5,
-    tankFire: Math.max(0.9, 3.0 - (w - 5) * 0.2),
+    tankFire: w >= 6 ? Math.max(0.75, 2.3 - (w - 6) * 0.17) : Math.max(0.9, 3.0 - (w - 5) * 0.2),
+    tankFirst: w >= 6 ? [0.4, 1.1] : [1.5, 3],   // seconds before a tank's first shot
+    huntRange: w >= 6 ? 42 : 34,
     bonus: w >= 2,
   };
 }
@@ -626,6 +644,19 @@ const barrelTex = pixelTexture(16, (g, s) => {
   g.fillStyle = '#f6d23c'; g.fillRect(0, 6, s, 4);
   g.fillStyle = '#1b1b1b'; for (let x = 0; x < s; x += 4) g.fillRect(x, 6, 2, 4);
 });
+const steelTex = pixelTexture(16, (g, s) => {
+  g.fillStyle = '#8a95a5'; g.fillRect(0, 0, s, s);
+  g.fillStyle = '#4a5260'; g.fillRect(0, 0, s, 2); g.fillRect(0, s - 2, s, 2); g.fillRect(0, 0, 2, s); g.fillRect(s - 2, 0, 2, s);
+  g.fillStyle = '#6d7888'; for (let i = 2; i < s - 2; i++) { g.fillRect(i, i, 1, 1); g.fillRect(s - 1 - i, i, 1, 1); }
+  g.fillStyle = '#d4dbe6'; for (const [x, y] of [[3, 3], [12, 3], [3, 12], [12, 12]]) g.fillRect(x, y, 1, 1);
+});
+const vaultTex = pixelTexture(16, (g, s) => {
+  g.fillStyle = '#3f6b4a'; g.fillRect(0, 0, s, s);
+  g.fillStyle = '#2c4d35'; for (let x = 1; x < s; x += 3) g.fillRect(x, 0, 1, s);
+  g.fillStyle = '#f2c53d'; g.fillRect(0, 6, s, 4);
+  g.fillStyle = '#1b1b1b'; for (let x = 0; x < s; x += 4) { g.fillRect(x, 6, 2, 2); g.fillRect(x + 2, 8, 2, 2); }
+  g.fillStyle = '#1e3325'; g.fillRect(0, 0, s, 1); g.fillRect(0, s - 1, s, 1);
+});
 function letterTex(ch, bg) {
   return pixelTexture(32, (g, s) => {
     g.fillStyle = bg; g.fillRect(0, 0, s, s);
@@ -649,6 +680,11 @@ const M = {
   drone: lam('#43e0d6', { emissive: '#0b5a56', flatShading: true }),
   droneRing: lam('#1f2a3a'),
   bonus: lam('#ffffff', { emissive: '#ff00ff', flatShading: true }),
+  steel: lam('#ffffff', { map: steelTex }),
+  vault: lam('#ffffff', { map: vaultTex }),
+  enemyVet: lam('#2f3f9e'), enemyVetDark: lam('#1c2766'),   // veteran tanks that take several hits
+  turretBase: lam('#4a4f60'),
+  fort: lam('#7a3fd0'), fortDark: lam('#4a2390'),
   shell: new THREE.MeshBasicMaterial({ color: '#fff3b0' }),
   enemyShell: new THREE.MeshBasicMaterial({ color: '#ff5a3c' }),
 };
@@ -656,9 +692,9 @@ const M = {
 const POWERS = {
   rapid:  { name: 'RAPID FIRE', icon: 'reload', color: '#ff8a2a', w: 3, desc: ['Fire 2.5× as fast', 'Fire 3× as fast', 'Fire 3.8× as fast'] },
   spread: { name: 'SPREAD SHOT', icon: 'multi', color: '#f2c53d', w: 3, desc: ['3-way shot', '5-way shot', '7-way shot'] },
-  bounce: { name: 'RICOCHET', icon: 'bounce', color: '#7d97ff', w: 2, desc: ['Shells bounce 2 more times', '3 more bounces', '4 more bounces'] },
+  bounce: { name: 'RICOCHET', icon: 'bounce', color: '#7d97ff', w: 2, desc: ['Shells bounce once more', '2 more bounces', '3 more bounces'] },
   seeker: { name: 'SEEKER', icon: 'homing', color: '#b86cff', w: 2, desc: ['Shells curve toward targets', 'Shells track harder', 'Shells lock on'] },
-  pierce: { name: 'PIERCING', icon: 'pierce', color: '#ff4fa3', w: 2, desc: ['Shells punch through 2 targets', 'Through 4 targets', 'Through 8 targets'] },
+  pierce: { name: 'PIERCING', icon: 'pierce', color: '#ff4fa3', w: 2, desc: ['Shells punch through 1 target', 'Through 2 targets', 'Through 3 targets'] },
   shield: { name: 'SHIELD', icon: 'armor', color: '#56e8ff', w: 1.5, desc: ['Blocks one hit'] },     // instant: a charge, up to 3
   time:   { name: '+5 SECONDS', icon: 'clock', color: '#6cf0a0', w: 2, desc: ['Five more seconds'] },  // instant
 };
@@ -668,18 +704,18 @@ const ROMAN = ['', '', ' II', ' III'];
 const powerFx = {
   rapid: [1, 0.4, 0.33, 0.26],   // fire cooldown multiplier
   spread: [[0], [-0.17, 0, 0.17], [-0.26, -0.13, 0, 0.13, 0.26], [-0.33, -0.22, -0.11, 0, 0.11, 0.22, 0.33]],
-  bounce: [0, 2, 3, 4],
+  bounce: [0, 1, 2, 3],
   seeker: [0, 2.6, 4.2, 6.5],      // turn rate, rad/s
-  pierce: [0, 2, 4, 8],
+  pierce: [0, 1, 2, 3],
 };
 // Arcade perks: a pick of three every second wave, kept for the whole run.
 const PERKS = {
   reload:     { name: 'Autoloader', icon: 'reload', color: '#ff8a2a', desc: '+10% fire rate', fx: (r) => `+${r * 10}% fire rate` },
   velocity:   { name: 'Long Barrel', icon: 'velocity', color: '#f2c53d', max: 6, desc: '+10% shell speed and range', fx: (r) => `+${r * 10}% shell speed` },
   engine:     { name: 'Engine Tune', icon: 'engine', color: '#3fd7ff', max: 5, desc: '+5% top speed', fx: (r) => `+${r * 5}% top speed` },
-  overclock:  { name: 'Overclock', icon: 'nitro', color: '#7d97ff', desc: 'Power-ups last 20% longer', fx: (r) => `power-ups last ${(POWER_TIME * (1 + 0.2 * r)).toFixed(1)} s` },
-  scavenger:  { name: 'Scavenger', icon: 'salvage', color: '#6cf0a0', max: 6, desc: 'Targets drop power-ups 25% more often', fx: (r) => `+${r * 25}% power-up drops` },
-  adrenaline: { name: 'Adrenaline', icon: 'crit', color: '#ff4b3a', max: 4, desc: 'Every target you destroy adds 0.4 s to running power-ups', fx: (r) => `+${(r * 0.4).toFixed(1)} s per target` },
+  overclock:  { name: 'Overclock', icon: 'nitro', color: '#7d97ff', max: 3, desc: 'Power-ups last 20% longer', fx: (r) => `power-ups last ${(POWER_TIME * (1 + 0.2 * r)).toFixed(1)} s` },
+  scavenger:  { name: 'Scavenger', icon: 'salvage', color: '#6cf0a0', max: 4, desc: 'Targets drop power-ups 25% more often', fx: (r) => `+${r * 25}% power-up drops` },
+  adrenaline: { name: 'Adrenaline', icon: 'crit', color: '#ff4b3a', max: 2, desc: 'Every target you destroy adds 0.4 s to running power-ups', fx: (r) => `+${(r * 0.4).toFixed(1)} s per target` },
   combo:      { name: 'Combo Keeper', icon: 'combo', color: '#ffe14f', max: 4, desc: 'Combos stay alive 0.5 s longer', fx: (r) => `${(COMBO_WINDOW + r * 0.5).toFixed(1)} s combo window` },
   ricochet:   { name: 'Bank Shot', icon: 'bounce', color: '#43e0d6', max: 3, desc: 'Shells bounce once more', fx: (r) => `${1 + r} bounces` },
   armor:      { name: 'Reactive Armor', icon: 'armor', color: '#56e8ff', max: 2, desc: 'Start every wave with a shield charge', fx: (r) => `${r} shield charge${r > 1 ? 's' : ''} each wave` },
@@ -785,8 +821,37 @@ const TYPES = {
     },
   },
   tank: {
-    r: 1.7, pts: 400, drop: 0.3, radar: '#7d97ff', debris: ['#5d7cff', '#3b55c4', '#23251c'], blast: BLAST_BIG,
+    r: 1.7, pts: 400, drop: 0.3, radar: '#7d97ff', debris: ['#5d7cff', '#3b55c4', '#23251c'], blast: BLAST_BIG, barY: 3.4,
     make() { return makeTank(M.enemy, M.enemyDark); },
+  },
+  // Tougher boxes: they soak several hits and can't be rammed flat.
+  steel: {
+    r: 1.35, hp: 3, pts: 300, drop: 0.1, radar: '#c8d0dc', debris: ['#8a95a5', '#4a5260', '#d4dbe6'], blast: BLAST_SMALL, barY: 3.3,
+    make() { const g = new THREE.Group(); g.add(part(M.steel, 2.4, 2.4, 2.4, 0, 1.2, 0)); return g; },
+  },
+  vault: {
+    r: 1.9, hp: 6, pts: 700, drop: 0.35, radar: '#7fbf7f', debris: ['#3f6b4a', '#f2c53d', '#1b1b1b'], blast: BLAST_BIG, barY: 4.3,
+    make() { const g = new THREE.Group(); g.add(part(M.vault, 3.3, 3.3, 3.3, 0, 1.65, 0)); return g; },
+  },
+  // Gauntlet only: gun emplacements and the fortress tank at the end of the road.
+  turret: {
+    r: 1.4, hp: 3, pts: 350, drop: 0.25, radar: '#ff8a5a', debris: ['#4a4f60', '#3b55c4', '#23251c'], blast: BLAST_BIG, barY: 3.2,
+    make() {
+      const g = new THREE.Group(), head = new THREE.Group();
+      g.add(part(M.turretBase, 2.6, 1.0, 2.6, 0, 0.5, 0));
+      head.position.y = 1.35;
+      head.add(part(M.enemyDark, 1.5, 0.7, 1.5, 0, 0, 0), part(M.enemyDark, 0.32, 0.32, 1.9, 0, 0, 1.2));
+      g.add(head); g.userData.turret = head; return g;
+    },
+  },
+  fortress: {
+    r: 3.6, hp: 32, pts: 5000, drop: 0, radar: '#b86cff', debris: ['#7a3fd0', '#4a2390', '#ffe14f'], blast: BLAST_BARREL, noBar: true,
+    make() {
+      const g = new THREE.Group(), tank = makeTank(M.fort, M.fortDark);
+      for (const sx of [-0.55, 0.55]) tank.userData.turret.add(part(M.fortDark, 0.22, 0.22, 1.4, sx, 0.05, 1.1));
+      tank.scale.setScalar(2.2);
+      g.add(tank); g.userData.turret = tank.userData.turret; return g;
+    },
   },
   bonus: {
     r: 1.15, pts: 500, drop: 1, radar: '#ff4fd8', debris: ['#ff4fd8', '#ffe14f', '#4fd8ff'], blast: BLAST_SMALL,
@@ -823,8 +888,10 @@ const G = {
   stateTime: 0, bonusSpawned: false, lastSecond: 99, waveHits: 0, shots: 0, waveTargets: 6,
   shake: 0, hitstop: 0, dustColor: '#9aa86a', best: store.get('best', 0), soundMode: store.get('sound', 0),
   overShownAt: 0, forfeit: false,
+  bounds: { x0: -A, x1: A, z0: -A, z1: A },   // where findSpot may place things
   // Arcade run: perk ranks, running power-ups ({ lvl, t, dur }), shield charges, and the stats they add up to.
   perks: {}, powers: {}, shield: 0, st: null,
+  checks: [], gMeshes: [], fortress: null, won: false, runTime: 0,   // Gauntlet
 };
 
 function addWall(cx, cz, w, d) {
@@ -836,10 +903,13 @@ function addWall(cx, cz, w, d) {
 function clearArena() {
   for (const wl of walls) if (wl.mesh) scene.remove(wl.mesh);
   walls.length = 0;
-  for (const t of targets) scene.remove(t.mesh);
+  for (const t of targets) { scene.remove(t.mesh); if (t.bar) scene.remove(t.bar); }
   for (const s of shells) scene.remove(s.mesh);
   for (const p of powerups) scene.remove(p.mesh);
   targets = []; shells = []; powerups = [];
+  for (const m of G.gMeshes) scene.remove(m);
+  G.gMeshes = []; G.checks = [];
+  followWorld(false);
   clearFx();
 }
 
@@ -853,6 +923,7 @@ function buildArena(w, layout = null, palette = null) {
   const li = layout ?? (w <= LAYOUTS.length ? w - 1 : 1 + Math.floor(Math.random() * (LAYOUTS.length - 1)));
   LAYOUTS[li](rects);
   rects.push([0, A + 2, 2 * A + 8, 4], [0, -A - 2, 2 * A + 8, 4], [A + 2, 0, 4, 2 * A], [-A - 2, 0, 4, 2 * A]);
+  G.bounds = { x0: -A, x1: A, z0: -A, z1: A };
   for (const r of rects) addWall(...r);
   indexWalls();
 }
@@ -951,9 +1022,9 @@ function findSpot(r, minFromSpawn = 16, near = null) {
       const ang = rand(0, TAU), dist = rand(near.min, near.max);
       x = near.x + Math.sin(ang) * dist; z = near.z + Math.cos(ang) * dist;
     } else {
-      x = rand(-A + r + 2, A - r - 2); z = rand(-A + r + 2, A - r - 2);
+      x = rand(G.bounds.x0 + r + 2, G.bounds.x1 - r - 2); z = rand(G.bounds.z0 + r + 2, G.bounds.z1 - r - 2);
     }
-    if (Math.abs(x) > A - r - 1 || Math.abs(z) > A - r - 1) continue;
+    if (x < G.bounds.x0 + r + 1 || x > G.bounds.x1 - r - 1 || z < G.bounds.z0 + r + 1 || z > G.bounds.z1 - r - 1) continue;
     if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < minFromSpawn) continue;
     if (!clearOfWalls(x, z, r + 1.2)) continue;
     if (targets.some((t) => t.alive && Math.hypot(t.x - x, t.z - z) < t.r + r + 1.6)) continue;
@@ -1226,7 +1297,7 @@ function updateGuide() {
 // ============================================================
 // Audio (all synthesized with WebAudio)
 // ============================================================
-const ARCADE_ROOTS = [45, 43, 41, 40], ROGUE_ROOTS = [38, 46, 48, 45];   // Am G F E, Dm Bb C A
+const ARCADE_ROOTS = [45, 43, 41, 40], ROGUE_ROOTS = [38, 46, 48, 45], GAUNTLET_ROOTS = [40, 43, 38, 45];   // Am G F E, Dm Bb C A, E G D A
 const audio = {
   ctx: null,
   roots: ARCADE_ROOTS,
@@ -1314,6 +1385,7 @@ const audio = {
   pulse() { this.tone('sine', 220, 50, 0.45, 0.4); this.noise(0.35, 0.25, 2400, 200); },
   ping() { this.tone('triangle', 1700, 2500, 0.07, 0.12); },
   thud() { this.noise(0.08, 0.2, 900, 200); },
+  clank() { this.tone('square', 980, 520, 0.06, 0.07); this.noise(0.05, 0.14, 3000, 1200, 'bandpass'); },
   hurt() { this.tone('sawtooth', 300, 40, 0.55, 0.22); this.noise(0.45, 0.45, 1200, 90); },
   pickup() { [523, 659, 784, 1047].forEach((f, i) => this.tone('square', f, f, 0.09, 0.1, i * 0.055)); },
   bonus() { [880, 1175, 1568].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.12, i * 0.07)); },
@@ -1513,7 +1585,7 @@ function padMenu() {
   }
   if (G.state === 'paused') return { id: 'pause', items: [$('btnResume'), $('btnForfeit')], start: 0, wait: 250, back: resume };
   if (!ui.over.hidden) return { id: 'over', items: [$('btnAgain'), $('btnMenu')], start: 0, wait: 700 };
-  if (!ui.title.hidden) return { id: 'title', items: [$('btnArcade'), $('btnRogue')], start: G.lastMode === 'rogue' ? 1 : 0, wait: 250 };
+  if (!ui.title.hidden) return { id: 'title', items: [$('btnArcade'), $('btnRogue'), $('btnGauntlet')], start: ['arcade', 'rogue', 'gauntlet'].indexOf(G.lastMode), wait: 250 };
   return null;
 }
 function padNavigate(menu, nav, pressed) {
@@ -1589,7 +1661,7 @@ const ui = {
   hud: $('hud'), title: $('title'), pause: $('pause'), over: $('over'), touch: touchEl,
   score: $('score'), timer: $('timer'), wave: $('wave'), waveLbl: $('waveLbl'), left: $('left'),
   combo: $('combo'), comboText: $('comboText'), comboBar: $('comboBar'), shots: $('shots'), shotsBox: $('shotsBox'),
-  powers: $('powers'), perks: $('perkRow'),
+  powers: $('powers'), perks: $('perkRow'), gDist: $('gDist'), gKills: $('gKills'), gBossBar: $('gBossBar'), gBossFill: $('gBossFill'),
   banner: $('banner'), bannerBig: $('bannerBig'), bannerSmall: $('bannerSmall'),
   fade: $('fade'), hurt: $('hurt'), sound: $('btnSound'), levelup: $('levelup'),
 };
@@ -1618,7 +1690,7 @@ function setState(s) { G.state = s; G.stateTime = 0; }
 
 function showTitle() {
   G.mode = 'arcade';
-  document.body.classList.remove('mode-rogue');
+  document.body.classList.remove('mode-rogue', 'mode-gauntlet');
   setState('title');
   resetArcadeRun();
   buildArena(1);
@@ -1628,6 +1700,8 @@ function showTitle() {
   $('bestArcade').textContent = G.best.toLocaleString();
   const rb = store.get('rogueBest', { depth: 0 });
   $('bestRogue').textContent = rb.depth ? `MAZE ${rb.depth}` : '\u2013';
+  const gb = store.get('gauntletBest', 0);
+  $('bestGauntlet').textContent = gb ? gb.toLocaleString() : '\u2013';
   ui.title.hidden = false; ui.hud.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.touch.hidden = true; ui.levelup.hidden = true;
   hideBanner();
   bannerTimer = 0;
@@ -1638,7 +1712,8 @@ function startGame(mode = G.mode) {
   audio.init();
   G.mode = G.lastMode = mode;
   document.body.classList.toggle('mode-rogue', mode === 'rogue');
-  audio.roots = mode === 'rogue' ? ROGUE_ROOTS : ARCADE_ROOTS;
+  document.body.classList.toggle('mode-gauntlet', mode === 'gauntlet');
+  audio.roots = mode === 'rogue' ? ROGUE_ROOTS : mode === 'gauntlet' ? GAUNTLET_ROOTS : ARCADE_ROOTS;
   input.dash = false;
   ui.title.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.levelup.hidden = true; ui.hud.hidden = false;
   if (isTouch) document.body.classList.add('is-touch');
@@ -1648,7 +1723,7 @@ function startGame(mode = G.mode) {
   else {
     G.score = 0; G.kills = 0; G.bestCombo = 0; G.combo = 0; G.comboTimer = 0;
     resetArcadeRun();
-    startWave(1);
+    if (mode === 'gauntlet') startGauntlet(); else startWave(1);
   }
 }
 
@@ -1692,6 +1767,7 @@ function startWave(w) {
   G.lastSecond = 99;
   G.shots = 0;
   G.waveTargets = G.remaining;
+  G.waveHP = targets.reduce((a, t) => a + t.maxHp, 0);
   G.comboTimer = 0;
   G.waveHits = 0;
   setState('countdown');
@@ -1721,32 +1797,48 @@ function spawnWave(cfg, preview) {
     const s = findSpot(1.05, 16, c ? { x: c.x, z: c.z, min: 2.8, max: 4.5 } : null);
     if (s) addTarget('barrel', s.x, s.z, next());
   }
+  for (let i = 0; i < (cfg.steel || 0); i++) {
+    const c = clusters.length ? clusters[(i + 1) % clusters.length] : null;
+    const s = findSpot(1.35, 16, c ? { x: c.x, z: c.z, min: 2.9, max: 3.8 } : null);
+    if (s) addTarget('steel', s.x, s.z, next());
+  }
+  for (let i = 0; i < (cfg.vaults || 0); i++) {
+    const s = findSpot(1.9, 20);
+    if (s) addTarget('vault', s.x, s.z, next());
+  }
   for (let i = 0; i < cfg.drones; i++) {
     const s = findSpot(1.15, 22);
     if (s) addTarget('drone', s.x, s.z, next());
   }
   for (let i = 0; i < cfg.tanks; i++) {
     const s = findSpot(1.7, 32);
-    if (s) addTarget('tank', s.x, s.z, next());
+    if (s) addTarget('tank', s.x, s.z, next(), { hp: cfg.tankHp || 1 });
   }
   G.remaining = targets.length;
   if (preview) for (const t of targets) t.age = 1;
 }
 
-function addTarget(type, x, z, delay) {
+// opts: hp (armour, in hits), home (where a Gauntlet enemy patrols around).
+function addTarget(type, x, z, delay, opts = {}) {
   const def = TYPES[type];
   const t = {
     type, def, x, z, r: def.r,
     a: rand(0, TAU), vx: 0, vz: 0, age: -delay, alive: true, chain: null, ai: null, life: 0,
+    hp: opts.hp ?? def.hp ?? 1, maxHp: 0, pop: 0, bar: null, home: opts.home || null,
     mesh: def.make(),
   };
+  t.maxHp = t.hp;
+  if (t.maxHp > 1 && !def.noBar) { t.bar = makeBar(def.r * 1.4); t.bar.visible = false; scene.add(t.bar); }
+  if (type === 'tank' && t.maxHp > 1) t.mesh.traverse((o) => { if (o.material === M.enemy) o.material = M.enemyVet; else if (o.material === M.enemyDark) o.material = M.enemyVetDark; });
   t.body = t.mesh.userData.body || null;
   if (type === 'drone' || type === 'bonus') {
     const sp = type === 'bonus' ? G.cfg.droneSpeed + 6 : G.cfg.droneSpeed;
     t.vx = Math.sin(t.a) * sp; t.vz = Math.cos(t.a) * sp;
     t.ai = { turn: rand(0.8, 2.2) };
   }
-  if (type === 'tank') t.ai = { mode: 'wander', timer: 0, wx: x, wz: z, fireCd: rand(1.5, 3), stuck: 0, blocked: 0 };
+  if (type === 'tank') t.ai = { mode: 'wander', timer: 0, wx: x, wz: z, fireCd: rand(...(G.cfg.tankFirst || [1.5, 3])), stuck: 0, blocked: 0, fireEvery: opts.fireEvery || 0 };
+  if (type === 'turret') { t.a = Math.PI; t.ai = { aim: Math.PI, fireCd: rand(0.6, 1.4), every: opts.fireEvery || 1.9 }; }
+  if (type === 'fortress') { t.a = Math.PI; t.ai = { awake: false, ph: 0, fireCd: 1.5, ringCd: 4, raged: false }; }
   if (type === 'bonus') t.life = 9;
   t.mesh.position.set(x, 0, z);
   t.mesh.rotation.y = t.a;
@@ -1774,8 +1866,8 @@ function startRush() {
   G.rush = true;
   G.rushes++;
   const base = waveConfig(G.wave);
-  G.cfg = { ...base, crates: Math.min(20 + 2 * G.rushes, 28), barrels: 6, drones: Math.min(2 + G.rushes, 6), tanks: 0, tankShoot: false, bonus: false, time: RUSH_TIME };
-  G.cfg.total = G.cfg.crates + G.cfg.barrels + G.cfg.drones;
+  G.cfg = { ...base, crates: Math.min(18 + 2 * G.rushes, 26), steel: 3, vaults: 0, barrels: 6, drones: Math.min(2 + G.rushes, 6), tanks: 0, tankShoot: false, bonus: false, time: RUSH_TIME };
+  G.cfg.total = G.cfg.crates + G.cfg.steel + G.cfg.barrels + G.cfg.drones;
   buildArena(G.wave, 0, 3);   // the most open layout, in neon
   spawnWave(G.cfg, false);
   resetPlayer();
@@ -1812,7 +1904,7 @@ function waveClear() {
   const bonus = Math.ceil(G.timeLeft) * 100;
   const flawless = G.cfg.tankShoot && G.waveHits === 0 ? 250 * G.wave : 0;
   // Every shot under the limit is worth 150; firing freely costs nothing but this bonus.
-  const limit = SHOTS_PER_TARGET * G.waveTargets;
+  const limit = SHOTS_PER_TARGET * G.waveHP;
   const sharp = G.shots <= limit ? 150 * (limit - G.shots + 1) : 0;
   G.score += bonus + flawless + sharp;
   const parts = [`TIME BONUS +${bonus.toLocaleString()}`];
@@ -1929,6 +2021,7 @@ function renderSoundBtn() {
 
 $('btnArcade').addEventListener('click', () => startGame('arcade'));
 $('btnRogue').addEventListener('click', () => startGame('rogue'));
+$('btnGauntlet').addEventListener('click', () => startGame('gauntlet'));
 $('btnAgain').addEventListener('click', () => startGame(G.mode));
 $('btnMenu').addEventListener('click', showTitle);
 $('btnPause').addEventListener('click', togglePause);
@@ -1973,7 +2066,7 @@ function spawnShell(x, z, a, owner, src) {
   const b = {
     x, z, vx: Math.sin(a) * spd, vz: Math.cos(a) * spd,
     life: mine ? SHELL_LIFE + Math.max(0, bounces - 1) * 0.3 : 2.8, bounces,
-    pierce: mine ? powerFx.pierce[powerLvl('pierce')] : 0, seek: mine ? powerFx.seeker[powerLvl('seeker')] : 0,
+    pierce: mine ? powerFx.pierce[powerLvl('pierce')] : 0, seek: mine ? powerFx.seeker[powerLvl('seeker')] : 0, hit: [],
     owner, src, banked: false, dead: false, mesh,
   };
   scene.add(mesh);
@@ -2005,6 +2098,7 @@ function moveShell(b, dist) {
     rem -= hit.t;
     if (b.bounces > 0) {
       b.bounces--; b.banked = true;
+      b.hit.length = 0;   // a ricochet may come back for the same target
       if (hit.nx) b.vx = -b.vx;
       if (hit.nz) b.vz = -b.vz;
       burst(b.x, 1.5, b.z, '#fff3b0', 3, 5, 0.18);
@@ -2023,7 +2117,7 @@ function shellHits(b, dx, dz, len) {
   for (;;) {
     let best = -1, bestT = null;
     for (const t of targets) {
-      if (!t.alive || t === b.src || t.age < 0) continue;
+      if (!t.alive || t === b.src || t.age < 0 || b.hit.includes(t)) continue;
       const d = segCircle(b.x, b.z, dx, dz, len, t.x, t.z, t.r + 0.25);
       if (d >= 0 && (best < 0 || d < best)) { best = d; bestT = t; }
     }
@@ -2037,8 +2131,8 @@ function shellHits(b, dx, dz, len) {
     }
     if (!bestT) return false;
     if (b.owner === 'player') {
-      destroyTarget(bestT, { banked: b.banked });
-      if (b.pierce > 0) { b.pierce--; burst(b.x + dx * best, 1.5, b.z + dz * best, '#ff4fa3', 3, 6, 0.2); continue; }
+      hitTarget(bestT, 1, { banked: b.banked, x: b.x + dx * best, z: b.z + dz * best });
+      if (b.pierce > 0) { b.pierce--; b.hit.push(bestT); burst(b.x + dx * best, 1.5, b.z + dz * best, '#ff4fa3', 3, 6, 0.2); continue; }
     } else burst(b.x + dx * best, 1.5, b.z + dz * best, '#ff5a3c', 4, 5, 0.2);
     b.x += dx * best; b.z += dz * best;
     return true;
@@ -2081,10 +2175,24 @@ function gainTime(sec) {
   restartAnim(ui.timer, 'gain');
 }
 
+// A hit on a target. Armoured ones (steel crates, containers, veteran tanks, turrets) soak hits until it runs out.
+function hitTarget(t, dmg, opts = {}) {
+  if (!t.alive) return;
+  t.hp -= dmg;
+  if (t.hp > 0) {
+    t.pop = 1;
+    burst(opts.x ?? t.x, 1.5, opts.z ?? t.z, ['#ffffff', '#ffd27a', t.def.debris[0]], 4, 6, 0.22);
+    audio.clank();
+    return;
+  }
+  destroyTarget(t, opts);
+}
+
 function destroyTarget(t, opts = {}) {
   if (!t.alive) return;
   t.alive = false;
   scene.remove(t.mesh);
+  if (t.bar) scene.remove(t.bar);
   const def = t.def, b = def.blast;
   burst(t.x, 1.2, t.z, def.debris, b.n, b.power, b.size);
   burst(t.x, 1.0, t.z, SMOKE, b.smoke, 2, 0.6, { smoke: true });
@@ -2098,7 +2206,8 @@ function destroyTarget(t, opts = {}) {
     G.comboTimer = G.st.comboWindow;
     G.bestCombo = Math.max(G.bestCombo, G.combo);
     const mult = Math.min(G.combo, 8);
-    let pts = def.pts * mult * (G.rush ? 2 : 1), cls = '', sub = mult > 1 ? `COMBO x${mult}` : '';
+    const base = t.type === 'tank' ? def.pts * (1 + 0.5 * (t.maxHp - 1)) : def.pts;
+    let pts = base * mult * (G.rush ? 2 : 1), cls = '', sub = mult > 1 ? `COMBO x${mult}` : '';
     if (opts.banked) { pts = Math.round(pts * 1.5); cls = 'bank'; sub = 'BANK SHOT' + (mult > 1 ? ` x${mult}` : ''); }
     else if (opts.chain) sub = 'CHAIN' + (mult > 1 ? ` x${mult}` : '');
     else if (opts.crushed) sub = 'CRUSHED' + (mult > 1 ? ` x${mult}` : '');
@@ -2112,12 +2221,15 @@ function destroyTarget(t, opts = {}) {
       popup('+5s', t.x, 4.2, t.z, 'time');
       audio.bonus();
     }
-    if (Math.random() < def.drop * G.st.dropMult) dropPowerup(t.x, t.z, t.type === 'bonus');
+    // Drops thin out after wave 6 so a big stack of power-ups doesn't carry the late waves.
+    const fade = G.mode === 'arcade' ? Math.max(0.6, 1 - 0.05 * Math.max(0, G.wave - 6)) : 1;
+    if (Math.random() < def.drop * G.st.dropMult * fade) dropPowerup(t.x, t.z, t.type === 'bonus');
     // Adrenaline: every target destroyed tops up the power-ups already running.
     if (G.st.adrenaline) for (const pw of Object.values(G.powers)) pw.t = Math.min(pw.dur, pw.t + G.st.adrenaline);
   }
   if (t.type === 'barrel') explode(t);
-  if (t.type !== 'bonus') {
+  if (t.type === 'fortress' && G.state === 'play') gauntletWin(t);
+  if (t.type !== 'bonus' && G.mode === 'arcade') {
     G.remaining--;
     if (G.remaining <= 0 && G.state === 'play') {
       G.hitstop = Math.max(G.hitstop, 0.45);   // a beat of slow motion on the last target
@@ -2130,6 +2242,7 @@ function destroyTarget(t, opts = {}) {
 function vanish(t) {
   t.alive = false;
   scene.remove(t.mesh);
+  if (t.bar) scene.remove(t.bar);
   flash(t.x, 1.6, t.z, 2, '#ffffff', 0.25);
   burst(t.x, 1.6, t.z, t.def.debris, 8, 4, 0.3);
 }
@@ -2360,14 +2473,25 @@ function updateTargets(dt, active) {
   for (const t of targets) {
     if (!t.alive) continue;
     t.age += dt;
-    t.mesh.scale.setScalar(t.age <= 0 ? 0.001 : t.age >= 0.35 ? 1 : Math.max(0.001, easeOutBack(t.age / 0.35)));
+    t.pop = Math.max(0, t.pop - dt * 6);
+    t.mesh.scale.setScalar((t.age <= 0 ? 0.001 : t.age >= 0.35 ? 1 : Math.max(0.001, easeOutBack(t.age / 0.35))) * (1 + t.pop * 0.12));
     if (t.chain !== null) {
       t.chain -= dt;
-      if (t.chain <= 0) { destroyTarget(t, { chain: true }); continue; }
+      if (t.chain <= 0) { t.chain = null; hitTarget(t, BLAST_DMG, { chain: true }); if (!t.alive) continue; }
+    }
+    if (t.bar) {
+      const ratio = clamp(t.hp / t.maxHp, 0, 1), { fg, w } = t.bar.userData;
+      t.bar.visible = t.age > 0.3;
+      t.bar.position.set(t.x, t.def.barY || 3.4, t.z);
+      t.bar.quaternion.copy(camera.quaternion);
+      fg.scale.x = Math.max(0.001, w * ratio);
+      fg.position.x = -w * (1 - ratio) / 2;
     }
     if (t.age < 0.35) continue;
     if (t.type === 'drone' || t.type === 'bonus') moveFlyer(t, dt, active);
     else if (t.type === 'tank') updateEnemyTank(t, dt, active);
+    else if (t.type === 'turret') updateTurret(t, dt, active);
+    else if (t.type === 'fortress') updateFortress(t, dt, active);
     if (!t.alive) continue;
     t.mesh.position.x = t.x;
     t.mesh.position.z = t.z;
@@ -2416,6 +2540,7 @@ function moveFlyer(t, dt, active) {
     t.vx = Math.sin(ang) * sp; t.vz = Math.cos(ang) * sp;
     t.ai.turn = t.type === 'bonus' ? rand(0.35, 0.8) : rand(1.0, 2.6) / (1 + G.wave * 0.04);
   }
+  if (t.home && Math.abs(t.z - t.home.z) > 16 && Math.sign(t.vz) === Math.sign(t.z - t.home.z)) t.vz = -t.vz;
   t.x += t.vx * dt; t.z += t.vz * dt;
   const n = collideWalls(t, t.r);
   if (n) {
@@ -2428,15 +2553,15 @@ function updateEnemyTank(t, dt, active) {
   const ai = t.ai, cfg = G.cfg;
   ai.timer -= dt; ai.fireCd -= dt;
   const dxp = player.x - t.x, dzp = player.z - t.z, dp = Math.hypot(dxp, dzp);
-  if (cfg.tankShoot && ai.stuck <= 0 && dp < 34) ai.mode = 'hunt';
-  else if (dp > 44 || ai.stuck > 0) ai.mode = 'wander';
+  if (cfg.tankShoot && ai.stuck <= 0 && dp < (cfg.huntRange || 34)) ai.mode = 'hunt';
+  else if (dp > (cfg.huntRange || 34) + 10 || ai.stuck > 0) ai.mode = 'wander';
   if (ai.stuck > 0) ai.stuck -= dt;
 
   let gx, gz;
   if (ai.mode === 'hunt') { gx = player.x; gz = player.z; }
   else {
     if (ai.timer <= 0 || Math.hypot(ai.wx - t.x, ai.wz - t.z) < 3) {
-      const s = findSpot(1.7, 0) || { x: 0, z: 0 };
+      const s = t.home ? { x: clamp(t.home.x + rand(-10, 10), G.bounds.x0 + 3, G.bounds.x1 - 3), z: t.home.z + rand(-8, 8) } : findSpot(1.7, 0) || { x: 0, z: 0 };
       ai.wx = s.x; ai.wz = s.z; ai.timer = rand(3, 6);
     }
     gx = ai.wx; gz = ai.wz;
@@ -2460,10 +2585,256 @@ function updateEnemyTank(t, dt, active) {
     if (aimErr < 0.12 && !raycastWalls(t.x, t.z, dxp / dp, dzp / dp, dp, 0.25)) {
       spawnShell(t.x, t.z, t.a, 'enemy', t);
       flash(t.x + Math.sin(t.a) * 2.4, 1.5, t.z + Math.cos(t.a) * 2.4, 0.9, '#ff8a5a', 0.12);
-      ai.fireCd = cfg.tankFire * rand(0.8, 1.3);
+      ai.fireCd = (ai.fireEvery || cfg.tankFire) * rand(0.8, 1.3);
       audio.enemyShot();
     }
   }
+}
+
+// ============================================================
+// Gauntlet: one long, narrow front line with a fortress tank at the end
+// ============================================================
+const GW = 28;            // half-width of the road (the Arcade arena is 46)
+const G_LEN = 400;        // start wall to far wall
+const G_SEG = 36;         // length of each set piece
+const G_BOSS_Z = 372;     // where the fortress waits
+const G_TIME = 60, G_CHECK_TIME = 15;
+const G_START = { x: 0, z: 8 };
+const wallX = (xa, xb, z, d = 2) => [(xa + xb) / 2, z, xb - xa, d];   // a wall across the road from xa to xb
+
+// Set pieces: each adds walls to R and enemies to S ([type, x, z, opts]). k runs from 0 at the start to 1 near the end.
+const PIECES = {
+  pillars(z0, k, R, S) {
+    for (const [x, z] of [[-14, 8], [14, 8], [0, 18], [-16, 28], [16, 28]]) R.push([x, z0 + z, 3.5, 3.5]);
+    S.push(['crate', -6, z0 + 10], ['crate', 7, z0 + 24], ['tank', rand(-10, 10), z0 + 24]);
+    if (k > 0.4) S.push(['tank', rand(-18, 18), z0 + 32]);
+  },
+  barricade(z0, k, R, S) {
+    const zc = z0 + 18;
+    R.push(wallX(-GW, -9, zc), wallX(9, GW, zc));
+    for (let i = 0; i < 6; i++) S.push([i === 1 || i === 4 ? 'barrel' : k > 0.55 && i === 2 ? 'vault' : k > 0.25 && i % 2 === 0 ? 'steel' : 'crate', -7.5 + i * 3, zc]);
+    if (k > 0.3) S.push(['turret', rand(-14, 14), zc + 11]);
+  },
+  chicane(z0, k, R, S) {
+    R.push(wallX(-GW, 8, z0 + 8), wallX(-8, GW, z0 + 26));
+    S.push(['drone', -14, z0 + 17], ['drone', 14, z0 + 17], ['crate', 15, z0 + 13], ['steel', -15, z0 + 21]);
+    if (k > 0.5) S.push(['tank', 0, z0 + 17]);
+  },
+  gate(z0, k, R, S) {
+    R.push(wallX(-GW, -6, z0 + 20), wallX(6, GW, z0 + 20));
+    S.push(['turret', -13, z0 + 28], ['turret', 13, z0 + 28], ['barrel', -4, z0 + 15], ['barrel', 4, z0 + 15]);
+    if (k > 0.6) S.push(['drone', 0, z0 + 30]);
+  },
+  ambush(z0, k, R, S) {
+    R.push([-13, z0 + 10, 7, 2], [13, z0 + 10, 7, 2]);
+    S.push(['tank', -12, z0 + 26], ['tank', 12, z0 + 26], ['crate', -4, z0 + 18], ['steel', 4, z0 + 18]);
+    if (k > 0.3) S.push(['vault', 0, z0 + 30]);
+    if (k > 0.6) S.push(['tank', 0, z0 + 34]);
+  },
+  minefield(z0, k, R, S) {
+    for (const z of [8, 18, 28]) {
+      const cx = rand(-16, 16);
+      S.push(['barrel', cx, z0 + z], ['barrel', cx + 2.4, z0 + z + 1], ['barrel', cx - 1.4, z0 + z + 2]);
+    }
+    S.push(['drone', -12, z0 + 14], ['drone', 12, z0 + 24]);
+    if (k > 0.45) S.push(['drone', 0, z0 + 32]);
+  },
+};
+
+function buildGauntlet() {
+  clearArena();
+  clearRogue();
+  G.palette = PALETTES[1];
+  applyPalette(G.palette);
+  G.bounds = { x0: -GW, x1: GW, z0: 0, z1: G_LEN };
+  const R = [], S = [];
+  R.push([-GW - 2, G_LEN / 2, 4, G_LEN + 8], [GW + 2, G_LEN / 2, 4, G_LEN + 8], [0, -2, 2 * GW + 8, 4], [0, G_LEN + 2, 2 * GW + 8, 4]);
+  // An easy opener, then the rest in a random order.
+  const rest = ['barricade', 'chicane', 'gate', 'ambush', 'minefield', 'barricade', 'gate'];
+  for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+  const order = ['pillars', ...rest];
+  order.forEach((kind, i) => PIECES[kind](30 + i * G_SEG, i / (order.length - 1), R, S));
+  // The fortress yard: cover up front, barrels to set off beside it, guns on the flanks.
+  R.push([-15, 336, 4, 4], [15, 336, 4, 4], [0, 348, 6, 2]);
+  S.push(['barrel', -9, 362], ['barrel', 9, 362], ['barrel', 0, 358], ['turret', -21, 360], ['turret', 21, 360], ['fortress', 0, G_BOSS_Z]);
+  for (const r of R) addWall(...r);
+  indexWalls();
+  for (const [type, x0, z0] of S) {
+    // Nudge anything that landed in a wall to the nearest clear spot.
+    let x = x0, z = z0;
+    for (let k = 0; k < 12 && !clearOfWalls(x, z, TYPES[type].r + 0.4); k++) { x = x0 + rand(-4, 4); z = z0 + rand(-3, 3); }
+    const prog = clamp((z - 30) / (G_SEG * 8), 0, 1);
+    const opts = { home: { x, z } };
+    if (type === 'tank') { opts.hp = 1 + Math.round(prog * 2); opts.fireEvery = 2.2 - prog * 0.9; }
+    if (type === 'turret') { opts.hp = 3 + Math.round(prog); opts.fireEvery = 2.0 - prog * 0.6; }
+    const t = addTarget(type, x, z, 0, opts);
+    t.age = 1;
+    t.mesh.scale.setScalar(1);
+  }
+  // Checkpoints: lines across the road that add time.
+  G.checks = [];
+  for (const [z, time, text] of [[30 + 3 * G_SEG, G_CHECK_TIME, `CHECKPOINT +${G_CHECK_TIME}s`], [30 + 6 * G_SEG, G_CHECK_TIME, `CHECKPOINT +${G_CHECK_TIME}s`], [326, 10, 'FORTRESS +10s']]) {
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(2 * GW, 1.4), new THREE.MeshBasicMaterial({ color: '#6cf0a0', transparent: true, opacity: 0.6, depthWrite: false }));
+    line.rotation.x = -Math.PI / 2;
+    line.position.set(0, 0.06, z);
+    const label = makeLabel(text, '#6cf0a0');
+    label.position.set(0, 4.5, z);
+    scene.add(line, label);
+    G.gMeshes.push(line, label);
+    G.checks.push({ z, time, line, label, passed: false });
+  }
+  G.remaining = 999;   // the Gauntlet ends at the fortress, not when everything is gone
+}
+
+function startGauntlet() {
+  G.cfg = { ...waveConfig(7), bonus: false, tankShoot: true, tankFire: 1.8, tankFirst: [0.4, 1.0], huntRange: 36, droneSpeed: 8, tankSpeed: 7 };
+  G.wave = 1;
+  G.won = false;
+  G.runTime = 0;
+  G.fortress = null;
+  buildGauntlet();
+  G.fortress = targets.find((t) => t.type === 'fortress');
+  resetPlayer();
+  player.x = G_START.x; player.z = G_START.z;
+  fadeIn();
+  G.timeLeft = G_TIME;
+  G.lastSecond = 99;
+  G.shots = 0;
+  G.comboTimer = 0;
+  G.waveHits = 0;
+  setState('countdown');
+  ui.touch.hidden = !isTouch;
+  banner('GAUNTLET', `FIGHT TO THE FORTRESS · ${G_TIME}s · CHECKPOINTS ADD TIME`, 1.6);
+  audio.beep(false);
+}
+
+// Gun emplacement: swings toward you and fires when it has a clear line.
+function updateTurret(t, dt, active) {
+  const ai = t.ai, dxp = player.x - t.x, dzp = player.z - t.z, dp = Math.hypot(dxp, dzp);
+  if (dp > 44) return;
+  const want = Math.atan2(dxp, dzp);
+  ai.aim += clamp(angDiff(ai.aim, want), -2.4 * dt, 2.4 * dt);
+  t.mesh.userData.turret.rotation.y = ai.aim - t.a;
+  ai.fireCd -= dt;
+  if (active && ai.fireCd <= 0 && dp < 38 && Math.abs(angDiff(ai.aim, want)) < 0.15 && !raycastWalls(t.x, t.z, dxp / dp, dzp / dp, dp, 0.25)) {
+    spawnShell(t.x, t.z, ai.aim, 'enemy', t);
+    flash(t.x + Math.sin(ai.aim) * 2.4, 1.5, t.z + Math.cos(ai.aim) * 2.4, 0.9, '#ff8a5a', 0.12);
+    ai.fireCd = ai.every * rand(0.85, 1.2);
+    audio.enemyShot();
+  }
+}
+
+// The fortress tank: wakes when you come close, strafes across its yard, fires fans and rings, and gets angrier at half armour.
+function updateFortress(t, dt, active) {
+  const ai = t.ai, dxp = player.x - t.x, dzp = player.z - t.z, dp = Math.hypot(dxp, dzp);
+  if (!ai.awake) {
+    if (dp > 62 || !active) return;
+    ai.awake = true;
+    banner('FORTRESS TANK', 'DESTROY IT BEFORE TIME RUNS OUT', 1.8);
+    audio.bonus();
+  }
+  ai.ph += dt;
+  const rage = t.hp <= t.maxHp / 2;
+  t.x += clamp(Math.sin(ai.ph * 0.45) * (GW - 9) - t.x, -6 * dt, 6 * dt);
+  const aim = Math.atan2(dxp, dzp);
+  t.mesh.userData.turret.rotation.y = aim - t.a;
+  if (!active) return;
+  if (rage && !ai.raged) {
+    ai.raged = true;
+    popup('ENRAGED!', t.x, 8, t.z, 'big');
+    for (const sx of [-6, 6]) addTarget('drone', clamp(t.x + sx, -GW + 3, GW - 3), t.z - 6, 0.2, { home: { x: t.x + sx, z: t.z - 6 } });
+  }
+  ai.fireCd -= dt; ai.ringCd -= dt;
+  if (ai.fireCd <= 0 && dp < 70) {
+    const n = rage ? 5 : 3;
+    for (let i = 0; i < n; i++) spawnShell(t.x, t.z, aim + (i - (n - 1) / 2) * 0.17, 'enemy', t);
+    flash(t.x + Math.sin(aim) * 5, 3, t.z + Math.cos(aim) * 5, 2, '#ff8a5a', 0.15);
+    ai.fireCd = rage ? 1.0 : 1.4;
+    audio.enemyShot();
+  }
+  if (ai.ringCd <= 0 && dp < 50) {
+    for (let i = 0; i < 12; i++) spawnShell(t.x, t.z, ai.ph + i * TAU / 12, 'enemy', t);
+    ai.ringCd = rage ? 4.5 : 6.5;
+    audio.boom(0.6);
+  }
+}
+
+function gauntletWin(t) {
+  const timeBonus = Math.ceil(Math.max(0, G.timeLeft)) * 200;
+  G.score += timeBonus;
+  G.won = true;
+  setState('over');
+  G.hitstop = 0.5;
+  for (let k = 0; k < 6; k++) flash(t.x + rand(-5, 5), 2.5, t.z + rand(-5, 5), 8, '#ffb347', 0.7);
+  burst(t.x, 2, t.z, ['#7a3fd0', '#ffe14f', '#ffffff'], 40, 22, 0.7);
+  addShake(1.3);
+  for (const s of shells) if (s.owner === 'enemy') killShell(s);
+  for (const o of targets) if (o.alive && (o.type === 'tank' || o.type === 'turret' || o.type === 'drone')) vanish(o);
+  banner('VICTORY!', `FORTRESS DESTROYED · TIME BONUS +${timeBonus.toLocaleString()}`, 2.4);
+  audio.clear();
+  ui.touch.hidden = true;
+  releaseAllPointers();
+}
+
+function showGauntletOver() {
+  const best = store.get('gauntletBest', 0), isBest = G.score > best;
+  if (isBest) store.set('gauntletBest', G.score);
+  const dist = Math.round(clamp(player.z / G_BOSS_Z, 0, 1) * 100);
+  showOver(G.won ? 'VICTORY' : G.forfeit ? 'FORFEIT' : 'TIME UP',
+    [['SCORE', G.score.toLocaleString()], ['TIME', fmtTime(G.runTime)], ['DISTANCE', G.won ? 'FORTRESS DOWN' : `${dist}%`], ['TARGETS', G.kills]],
+    isBest ? 'NEW BEST SCORE!' : `BEST <b>${best.toLocaleString()}</b>`, isBest && G.score > 0);
+}
+
+// The ground and the sun's shadow box follow the tank down the long road, in 8-unit steps so the checks never slide.
+function followWorld(on) {
+  const sx = on ? Math.round(player.x / 8) * 8 : 0, sz = on ? Math.round(player.z / 8) * 8 : 0;
+  if (ground.position.x === sx && ground.position.z === sz) return;
+  ground.position.set(sx, 0, sz);
+  sun.target.position.set(sx, 0, sz);
+  sun.position.set(sx + 34, 64, sz - 22);
+}
+
+function updateGauntlet(dt) {
+  input.dash = false;
+  if (G.state === 'countdown' && G.stateTime >= 1.5) {
+    setState('play');
+    banner('GO!', '', 0.6);
+    audio.beep(true);
+  }
+  if (G.state === 'play') {
+    G.timeLeft -= dt;
+    G.runTime += dt;
+    const sec = Math.ceil(G.timeLeft);
+    if (sec !== G.lastSecond) { G.lastSecond = sec; if (sec <= 10 && sec > 0) audio.tick(); }
+    for (const c of G.checks) {
+      if (c.passed || player.z < c.z) continue;
+      c.passed = true;
+      gainTime(c.time);
+      popup(`+${c.time}s`, player.x, 4, player.z, 'time');
+      banner(c.z > 300 ? 'FORTRESS AHEAD' : 'CHECKPOINT', `+${c.time} SECONDS`, 1.2);
+      c.line.material.color.set('#ffffff');
+      c.label.visible = false;
+      audio.clear();
+    }
+    if (G.timeLeft <= 0) gameOver();
+  }
+  if (G.comboTimer > 0 && G.state === 'play') G.comboTimer -= dt;
+  for (const c of G.checks) if (c.passed) c.line.material.opacity = Math.max(0, c.line.material.opacity - dt * 0.5);
+
+  updatePlayer(dt, G.state === 'play');
+  updateTargets(dt, G.state === 'play');
+  updateShells(dt);
+  updatePowerups(dt);
+  followWorld(true);
+  updateCamera(dt);
+  updateAim();
+  updateHud();
+
+  const on = G.state === 'play' || G.state === 'countdown';
+  audio.engine(player.speed, on, G.state === 'play' ? Math.abs(input.throttle) : 0);
+  const bossOn = G.fortress && G.fortress.alive && G.fortress.ai.awake;
+  audio.updateMusic(on, 128 + Math.min(20, player.z / 20) + (bossOn ? 18 : 0) + (G.state === 'play' && G.timeLeft < 10 ? 12 : 0));
+  if (G.state === 'over' && G.stateTime > (G.won ? 2.4 : 1.5) && ui.over.hidden) showGauntletOver();
 }
 
 // ============================================================
@@ -4292,6 +4663,10 @@ function renderLoadout() {
     if (G.shield) live.push({ id: 'armor', color: POWERS.shield.color, name: 'SHIELD', rank: `${G.shield} CHARGE${G.shield > 1 ? 'S' : ''}`, fx: 'Each charge blocks one hit' });
     if (live.length) sub('POWER-UPS');
     for (const r of live) addLoRow(el, r);
+    if (G.mode === 'gauntlet') {
+      if (!live.length) { const p = document.createElement('p'); p.className = 'lo-empty'; p.textContent = 'No power-ups running. Targets drop them as you fight.'; el.appendChild(p); }
+      return;
+    }
     rows = buildRows();
     sub('PERKS');
     if (!rows.length) {
@@ -4703,11 +5078,12 @@ function updateHud() {
   setText(ui.timer, 'timer', t >= 10 ? String(Math.ceil(t)) : t.toFixed(1));
   const low = t < 10 && (G.state === 'play');
   if (hudCache.low !== low) { hudCache.low = low; ui.timer.classList.toggle('low', low); }
+  if (G.mode === 'gauntlet') updateGauntletHud();
   setText(ui.waveLbl, 'waveLbl', G.rush ? 'BONUS' : 'WAVE');
   setText(ui.wave, 'wave', G.rush ? 'RUSH' : String(G.wave));
   if (ui.shotsBox.hidden !== G.rush) ui.shotsBox.hidden = G.rush;   // no Sharpshooter in a rush
   setText(ui.left, 'left', String(Math.max(0, G.remaining)));
-  const limit = SHOTS_PER_TARGET * G.waveTargets, overLimit = G.shots > limit;
+  const limit = SHOTS_PER_TARGET * G.waveHP, overLimit = G.shots > limit;
   setText(ui.shots, 'shots', `${G.shots}/${limit}`);
   if (hudCache.shotsOver !== overLimit) { hudCache.shotsOver = overLimit; ui.shotsBox.classList.toggle('over', overLimit); }
   const showCombo = G.comboTimer > 0 && G.combo > 1;
@@ -4720,6 +5096,16 @@ function updateHud() {
   const perkSig = Object.values(G.perks).join(',');
   if (perkSig !== G.perkSig) { G.perkSig = perkSig; renderStrip(ui.perks, true); }
   drawRadar();
+}
+
+function updateGauntletHud() {
+  const f = G.fortress, awake = f && f.alive && f.ai.awake;
+  const togo = Math.max(0, Math.round(G_BOSS_Z - player.z));
+  const dist = awake ? '<b>ENGAGED</b>' : f && !f.alive ? '<b>DOWN</b>' : `FORTRESS <b>${togo}</b>M`;   // numbers only
+  if (hudCache.gDist !== dist) { hudCache.gDist = dist; ui.gDist.innerHTML = dist; }
+  setText(ui.gKills, 'gKills', String(G.kills));
+  if (ui.gBossBar.hidden === !!awake) ui.gBossBar.hidden = !awake;
+  if (awake) ui.gBossFill.style.transform = `scaleX(${clamp(f.hp / f.maxHp, 0, 1).toFixed(3)})`;
 }
 
 // Running power-ups under the timer: icon, level pips, and a sweep for the time left. Shield charges sit at the end.
@@ -4795,6 +5181,7 @@ function update(dt) {
   G.stateTime += dt;
   readInput();
   if (G.mode === 'rogue') updateRogue(dt);
+  else if (G.mode === 'gauntlet') updateGauntlet(dt);
   else updateArcade(dt);
   updateDebris(dt);
   updateFlashes(dt);
@@ -4894,7 +5281,7 @@ showTitle();
 $('loading').remove();
 requestAnimationFrame((t) => { last = t; frame(t); });
 // Debug handle for poking at the game from the browser console.
-window.__pytank = { G, RG, player, input, pbar, uplink, get targets() { return targets; }, get ebs() { return ebs; }, get pbs() { return pbs; }, get powerups() { return powerups; }, startWave, buildMaze, rogueStats, grantPower, hitPlayer, rogueHurt, ebShot, dropBoost, spawnFoe, killEnemy, destroyTarget, openLevelUp };
+window.__pytank = { G, RG, player, input, pbar, uplink, get targets() { return targets; }, get ebs() { return ebs; }, get pbs() { return pbs; }, get powerups() { return powerups; }, startWave, buildMaze, rogueStats, grantPower, hitPlayer, rogueHurt, ebShot, dropBoost, spawnFoe, killEnemy, destroyTarget, openLevelUp, hitTarget, raycastWalls };
 </script>
 </body>
 </html>

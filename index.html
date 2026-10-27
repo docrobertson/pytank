@@ -699,6 +699,7 @@ const POWERS = {
   time:   { name: '+5 SECONDS', icon: 'clock', color: '#6cf0a0', w: 2, desc: ['Five more seconds'] },  // instant
 };
 const POWER_TIME = 9;
+const ADRENALINE_CAP = 4;   // most seconds Adrenaline can add to one power-up before it's picked up again
 const SHIELD_MAX = 3;
 const ROMAN = ['', '', ' II', ' III'];
 const powerFx = {
@@ -715,7 +716,7 @@ const PERKS = {
   engine:     { name: 'Engine Tune', icon: 'engine', color: '#3fd7ff', max: 5, desc: '+5% top speed', fx: (r) => `+${r * 5}% top speed` },
   overclock:  { name: 'Overclock', icon: 'nitro', color: '#7d97ff', max: 3, desc: 'Power-ups last 20% longer', fx: (r) => `power-ups last ${(POWER_TIME * (1 + 0.2 * r)).toFixed(1)} s` },
   scavenger:  { name: 'Scavenger', icon: 'salvage', color: '#6cf0a0', max: 4, desc: 'Targets drop power-ups 25% more often', fx: (r) => `+${r * 25}% power-up drops` },
-  adrenaline: { name: 'Adrenaline', icon: 'crit', color: '#ff4b3a', max: 2, desc: 'Every target you destroy adds 0.4 s to running power-ups', fx: (r) => `+${(r * 0.4).toFixed(1)} s per target` },
+  adrenaline: { name: 'Adrenaline', icon: 'crit', color: '#ff4b3a', max: 2, desc: 'Each target you destroy adds 0.4 s to the power-up closest to running out, up to +4 s each', fx: (r) => `+${(r * 0.4).toFixed(1)} s per target` },
   combo:      { name: 'Combo Keeper', icon: 'combo', color: '#ffe14f', max: 4, desc: 'Combos stay alive 0.5 s longer', fx: (r) => `${(COMBO_WINDOW + r * 0.5).toFixed(1)} s combo window` },
   ricochet:   { name: 'Bank Shot', icon: 'bounce', color: '#43e0d6', max: 3, desc: 'Shells bounce once more', fx: (r) => `${1 + r} bounces` },
   armor:      { name: 'Reactive Armor', icon: 'armor', color: '#56e8ff', max: 2, desc: 'Start every wave with a shield charge', fx: (r) => `${r} shield charge${r > 1 ? 's' : ''} each wave` },
@@ -2244,8 +2245,16 @@ function destroyTarget(t, opts = {}) {
     // Drops thin out after wave 6 so a big stack of power-ups doesn't carry the late waves.
     const fade = G.rush ? 0.5 : G.mode === 'arcade' ? Math.max(0.6, 1 - 0.05 * Math.max(0, G.wave - 6)) : 1;
     if (Math.random() < def.drop * G.st.dropMult * fade) dropPowerup(t.x, t.z, t.type === 'bonus');
-    // Adrenaline: every target destroyed tops up the power-ups already running.
-    if (G.st.adrenaline) for (const pw of Object.values(G.powers)) pw.t = Math.min(pw.dur, pw.t + G.st.adrenaline);
+    // Adrenaline tops up only the power-up closest to running out, and only so far, so a big stack can't stay full forever.
+    if (G.st.adrenaline) {
+      let low = null;
+      for (const pw of Object.values(G.powers)) if ((pw.boost || 0) < ADRENALINE_CAP && pw.t < pw.dur && (!low || pw.t < low.t)) low = pw;
+      if (low) {
+        const add = Math.min(G.st.adrenaline, ADRENALINE_CAP - (low.boost || 0), low.dur - low.t);
+        low.t += add;
+        low.boost = (low.boost || 0) + add;
+      }
+    }
   }
   if (t.type === 'barrel') explode(t);
   if (t.type === 'fortress' && G.state === 'play') gauntletWin(t);

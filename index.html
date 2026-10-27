@@ -1580,7 +1580,7 @@ function pollGamepad() {
   else {
     gpad.menu = '';
     if (G.mode === 'rogue' && gpad.dash && !gpad.dashPrev) input.dash = true;
-    if (pressed('start')) togglePause();
+    if (pressed('start') || pressed('b')) togglePause();   // B isn't used in play, so it pauses too (and resumes, above)
   }
   if (pressed('back')) cycleSound();
   gpad.dashPrev = gpad.dash;
@@ -1588,7 +1588,7 @@ function pollGamepad() {
 }
 
 // Controller menus. Whatever screen is up, the d-pad or left stick moves a gold highlight over its buttons and A
-// presses the highlighted one. Start starts a game, plays again or resumes; B resumes from pause; Y rerolls cards.
+// presses the highlighted one. Start starts a game, plays again or resumes; B pauses and resumes; Y rerolls cards.
 function padMenu() {
   if (G.state === 'levelup') {
     const items = [...$('cards').querySelectorAll('.upg')];

@@ -73,7 +73,7 @@ A high, north-up camera so you can see shots coming from every side. Your turret
 | Rogue: dash | Space or Shift | Tap a second finger, or the Dash button | A, X or RB |
 | Pick a card or perk | 1, 2, 3 or click (R rerolls in Rogue) | Tap | D-pad to choose, A to pick (Y rerolls) |
 | Menus (title, pause, results) | Click, or Enter to start / play again | Tap | D-pad to choose, A to select; Start starts, plays again or resumes; B resumes |
-| Pause | P or Esc | II button | Start |
+| Pause | P or Esc | II button | Start or B (either one resumes) |
 | Sound | M (music + FX → FX only → off) | ♪ button | Back / View |
 
 With a gamepad, every screen shows a gold highlight on the chosen button and a hint line with the buttons to press.

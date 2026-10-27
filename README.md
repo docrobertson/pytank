@@ -2,7 +2,7 @@
 
 Combat tank!
 
-A 3D tank game inspired by Atari 2600 *Combat*, with two modes. It runs in the browser on desktop and mobile.
+A 3D tank game inspired by Atari 2600 *Combat*, with three modes. It runs in the browser on desktop and mobile.
 
 ## Play
 
@@ -22,18 +22,27 @@ The page loads three.js from the jsDelivr CDN, so the first load needs an intern
 Chase camera behind and above your tank. Destroy every target in the wave before the clock hits zero; leftover seconds turn into bonus points.
 
 - **Waves ramp up:** more targets, less time per target, and a faster tank and soundtrack each wave. Drones show up at wave 3, enemy tanks at wave 4, and from wave 5 the tanks shoot back. A hit spins you out Combat-style and costs 3 seconds.
-- **Ramming:** drive into a crate at speed to crush it. Ramming a barrel sets it off.
-- **Barrels explode** and chain through anything nearby. Being within 5 units of a blast counts as a hit.
+- **Armour:** from wave 4, grey steel crates take 3 hits, and from wave 7, green armoured containers take 6. From wave 6, enemy tanks are veterans (darker blue) that take 2 hits, rising to 5 by wave 15; they also spot you from farther away, fire sooner and fire more often. Anything that takes more than one hit shows a health bar. Waves with more armour get more time.
+- **Ramming:** drive into a wooden crate at speed to crush it. Ramming a barrel sets it off. Steel and armoured boxes don't crush.
+- **Barrels explode** and chain through anything nearby, destroying light targets and doing 3 damage to armoured ones. Being within 5 units of a blast counts as a hit.
 - **Shells ricochet once** (more with Ricochet or the Bank Shot perk). A bank shot is worth 50% more, and the aim line shows the first bounce.
 - **Combos:** kills within 2.5 seconds of each other multiply points, up to x8. Clearing a wave from 5 onward without taking a hit pays a no-hit bonus.
-- **Sharpshooter:** clear a wave using no more than 2 shots per target (the HUD shows `SHOTS 5/12`) and every shot under the limit pays 150. Firing freely costs nothing except this bonus.
+- **Sharpshooter:** clear a wave using no more than 2 shots per hit point of armour (the HUD shows `SHOTS 5/12`) and every shot under the limit pays 150. Firing freely costs nothing except this bonus.
 - **Heavy handling:** the tank builds up speed, coasts to a stop and winds into and out of turns.
 - **Aim assist:** a shot locks onto a target just off your aim line (the line turns orange) and leads moving targets.
 - **Guide arrow:** once three or fewer targets are left, an arrow by your tank points to the nearest one.
-- **Power-ups stack.** Targets sometimes drop icon cubes, and each power-up runs on its own 9-second clock, so you can have several at once. Grabbing one you already have resets its clock and powers it up, to level III: Rapid Fire, Spread Shot (3, 5 or 7 shells), Ricochet (extra bounces), Seeker (shells curve toward targets) and Piercing (shells punch through targets). Shield blocks one hit with no time lost (up to 3 charges, and they carry over), and +5 seconds adds time. Running power-ups show under the timer with a sweep for the time left, and blink just before they run out. Holding three or more at once shows a POWER STACK callout. A rainbow bonus target appears mid-wave; it's worth +5 seconds and always drops a weapon power-up.
-- **Target Rush:** after every fourth wave (and its perk pick) comes a 15-second bonus stage. You get an open neon arena packed with crates, barrels and drones, double points, and Rapid Fire II and Spread Shot II for free. You can't lose it: when time runs out you move on. Destroy every target for a Perfect bonus.
+- **Power-ups stack.** Targets sometimes drop icon cubes, and each power-up runs on its own 9-second clock, so you can have several at once. Grabbing one you already have resets its clock and powers it up, to level III: Rapid Fire, Spread Shot (3, 5 or 7 shells), Ricochet (1 to 3 extra bounces), Seeker (shells curve toward targets) and Piercing (shells punch through 1 to 3 targets, one hit each). Shield blocks one hit with no time lost (up to 3 charges, and they carry over), and +5 seconds adds time. Running power-ups show under the timer with a sweep for the time left, and blink just before they run out. Their clocks only run while you can drive: they stop the moment a wave is cleared and pick up again when the next wave starts. Holding three or more at once shows a POWER STACK callout. A rainbow bonus target appears mid-wave; it's worth +5 seconds and always drops a weapon power-up. Drops get rarer after wave 6, so a big stack of power-ups doesn't carry the late waves.
+- **Target Rush:** after every fourth wave (and its perk pick) comes a 15-second bonus stage. You get an open neon arena packed with crates, barrels and drones, double points, and Rapid Fire II and Spread Shot II for free. You can't lose it: when time runs out you move on. Destroy every target for a Perfect bonus. Power-ups drop half as often during a rush, and when it ends only the two with the most time left carry over, with 4 seconds left for the next wave.
 - **Final hit:** the last target of a wave goes down in a beat of slow motion.
-- **Perks:** after every second wave, pick one of three perks that last the whole run: Autoloader (fire rate), Long Barrel (shell speed), Engine Tune (top speed), Overclock (longer power-ups), Scavenger (more drops), Adrenaline (each target you destroy tops up running power-ups), Combo Keeper (longer combo window), Bank Shot (an extra bounce), Reactive Armor (a shield charge at the start of every wave) and Time Bank (more time on every wave). Your perks show next to the score on wider screens and in the pause screen.
+- **Perks:** after every second wave, pick one of three perks that last the whole run: Autoloader (fire rate), Long Barrel (shell speed), Engine Tune (top speed), Overclock (longer power-ups, up to 3 ranks), Scavenger (more drops, up to 4), Adrenaline (each target you destroy adds 0.4 s per rank to the power-up closest to running out, at most 4 s per power-up; up to 2 ranks), Combo Keeper (longer combo window), Bank Shot (an extra bounce), Reactive Armor (a shield charge at the start of every wave) and Time Bank (more time on every wave). Your perks show next to the score on wider screens and in the pause screen.
+
+## Gauntlet
+
+The Arcade tank, controls and chase camera on one long, narrower road (about four arenas long), with a fortress tank waiting at the far end. Like Bullet Rogue, your turret swings toward targets and fires by itself, so you can concentrate on driving and dodging. It goes for tanks, turrets, drones and the fortress first, then whatever is in the way, and it won't shoot a barrel close enough for the blast to reach you. A dashed orange line shows what it's locked onto. On touch screens the whole screen drives, with no fire button.
+
+- **The run:** you start with 50 seconds. The road is a string of set pieces: an opening stretch of pillars, then barricades of crates and steel to shoot or ram through, chicanes, narrow gates covered by gun turrets, tank ambushes and barrel fields, in a different order each run. Enemies get tougher the farther you go: tanks take up to 3 hits and turrets 3 to 4. Two checkpoints add 15 seconds each, and the line into the fortress yard adds 10.
+- **The fortress:** a big purple tank behind cover, flanked by two turrets. It wakes when you get close, strafes across its yard, and fires fans of shells plus a ring every few seconds. It takes 40 hits; barrels next to it do 3 damage when they go up. At half armour it gets angrier, firing faster and wider and calling in two drones. A bar under the timer shows its armour.
+- **Winning:** destroy the fortress for 5,000 points plus 200 for every second left. Hits cost 3 seconds, as in Arcade, and time running out ends the run. Power-ups drop as in Arcade; there are no perks. The HUD shows the distance to the fortress and your kills, and your best score is saved.
 
 ## Bullet Rogue
 
@@ -56,16 +65,18 @@ A high, north-up camera so you can see shots coming from every side. Your turret
 
 ## Controls
 
-| | Desktop | Touch |
-|---|---|---|
-| Drive | W A S D or arrow keys | Put a thumb down (left half in Arcade); the stick appears under it and stays put |
-| Arcade: fire | Space (hold for auto-fire) | Hold anywhere on the right half |
-| Rogue: dash | Space or Shift | Tap a second finger, or the Dash button |
-| Pick a card or perk | 1, 2, 3 or click (R rerolls in Rogue) | Tap |
-| Pause | P or Esc | II button |
-| Sound | M (music + FX → FX only → off) | ♪ button |
+| | Desktop | Touch | Gamepad |
+|---|---|---|---|
+| Drive | W A S D or arrow keys | Put a thumb down (left half in Arcade, anywhere in Rogue and Gauntlet); the stick appears under it and stays put | Left stick or d-pad |
+| Arcade: fire | Space (hold for auto-fire) | Hold anywhere on the right half | A, RB or RT |
+| Gauntlet: fire | Automatic: the turret aims and fires itself | Automatic | Automatic |
+| Rogue: dash | Space or Shift | Tap a second finger, or the Dash button | A, X or RB |
+| Pick a card or perk | 1, 2, 3 or click (R rerolls in Rogue) | Tap | D-pad to choose, A to pick (Y rerolls) |
+| Menus (title, pause, results) | Click, or Enter to start / play again | Tap | D-pad to choose, A to select; Start starts, plays again or resumes; B resumes |
+| Pause | P or Esc | II button | Start or B (either one resumes) |
+| Sound | M (music + FX → FX only → off) | ♪ button | Back / View |
 
-Gamepads work too: left stick or d-pad to drive, A or a shoulder button to fire (Arcade) or dash (Rogue), Start to pause. On the level-up cards, the d-pad moves between cards, A picks and Y rerolls.
+With a gamepad, every screen shows a gold highlight on the chosen button and a hint line with the buttons to press.
 
 **Pause** shows your loadout. **Forfeit** on the pause screen ends the run and takes you to the results, so your score or depth still counts toward your best (press it twice to confirm).
 
@@ -73,4 +84,4 @@ Your best Arcade score and deepest Rogue maze are saved in the browser.
 
 ## Code
 
-Everything lives in `index.html`: the page, its styles and one module script, with no build step. The Home Screen icons are in `icons/` (`icon.svg` is the source; the PNGs are 180, 192 and 512 px renders of it), and `manifest.webmanifest` names the app for Android. The only dependency is three.js (r160), loaded from jsDelivr. The script is split into commented sections: shared engine pieces (renderer, models, collision, effects, audio, input), then Arcade, then Bullet Rogue (data, models, maze generation, enemies, player, level-up cards, HUD), then the camera, HUD and main loop.
+Everything lives in `index.html`: the page, its styles and one module script, with no build step. The Home Screen icons are in `icons/` (`icon.svg` is the source; the PNGs are 180, 192 and 512 px renders of it), and `manifest.webmanifest` names the app for Android. The only dependency is three.js (r160), loaded from jsDelivr. The script is split into commented sections: shared engine pieces (renderer, models, collision, effects, audio, input), then Arcade, then Gauntlet (set pieces, turrets, the fortress), then Bullet Rogue (data, models, maze generation, enemies, player, level-up cards, HUD), then the camera, HUD and main loop.

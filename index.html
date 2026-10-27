@@ -392,7 +392,7 @@
 
 <div id="touch" hidden>
   <div id="stick"><div id="knob"></div><div class="stick-hint">DRIVE</div></div>
-  <div id="fireBtn" class="only-arcade">FIRE</div>
+  <div id="fireBtn" class="only-arcade no-gauntlet">FIRE</div>
   <div id="dashBtn" class="only-rogue">DASH</div>
 </div>
 
@@ -418,18 +418,18 @@
         <button id="btnGauntlet" class="mode gauntlet">
           <span class="mode-name">GAUNTLET</span>
           <span class="mode-best">BEST <b id="bestGauntlet">&ndash;</b></span>
-          <span class="mode-desc">Fight down one long, narrow front line through barricades, turrets and tanks, then destroy the fortress tank at the end before time runs out.</span>
+          <span class="mode-desc">Drive one long, narrow front line while your turret picks its own targets. Dodge through barricades, turrets and tanks, then destroy the fortress tank before time runs out.</span>
         </button>
       </div>
       <div class="pad-hint">D-PAD TO CHOOSE · A TO START</div>
       <div class="controls only-keys">
         <span class="k"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Drive (arrow keys work too)</span>
-        <span class="k"><kbd>SPACE</kbd></span><span>Arcade, Gauntlet: fire &middot; Rogue: dash</span>
+        <span class="k"><kbd>SPACE</kbd></span><span>Arcade: fire &middot; Rogue: dash &middot; Gauntlet aims itself</span>
         <span class="k"><kbd>P</kbd><kbd>M</kbd></span><span>Pause, sound</span>
       </div>
       <div class="controls only-touch">
-        <span class="k"><kbd>THUMB</kbd></span><span>Drag to drive (left half in Arcade and Gauntlet)</span>
-        <span class="k"><kbd>TAP</kbd></span><span>Arcade, Gauntlet: hold the right half to fire &middot; Rogue: tap a second finger to dash</span>
+        <span class="k"><kbd>THUMB</kbd></span><span>Drag to drive (left half in Arcade)</span>
+        <span class="k"><kbd>TAP</kbd></span><span>Arcade: hold the right half to fire &middot; Rogue: tap a second finger to dash</span>
       </div>
     </div>
   </div>
@@ -845,7 +845,7 @@ const TYPES = {
     },
   },
   fortress: {
-    r: 3.6, hp: 32, pts: 5000, drop: 0, radar: '#b86cff', debris: ['#7a3fd0', '#4a2390', '#ffe14f'], blast: BLAST_BARREL, noBar: true,
+    r: 3.6, hp: 40, pts: 5000, drop: 0, radar: '#b86cff', debris: ['#7a3fd0', '#4a2390', '#ffe14f'], blast: BLAST_BARREL, noBar: true,
     make() {
       const g = new THREE.Group(), tank = makeTank(M.fort, M.fortDark);
       for (const sx of [-0.55, 0.55]) tank.userData.turret.add(part(M.fortDark, 0.22, 0.22, 1.4, sx, 0.05, 1.1));
@@ -892,6 +892,7 @@ const G = {
   // Arcade run: perk ranks, running power-ups ({ lvl, t, dur }), shield charges, and the stats they add up to.
   perks: {}, powers: {}, shield: 0, st: null,
   checks: [], gMeshes: [], fortress: null, won: false, runTime: 0,   // Gauntlet
+  turretA: 0, turretTarget: null, retarget: 0,                          // Gauntlet auto-turret
 };
 
 function addWall(cx, cz, w, d) {
@@ -1229,6 +1230,16 @@ function updateAim() {
   aimLine.visible = show && player.spin <= 0;
   if (!aimLine.visible) return;
   const p = player, pos = aimGeo.attributes.position;
+  if (G.mode === 'gauntlet') {
+    const t = G.turretTarget && G.turretTarget.alive ? G.turretTarget : null;
+    aimLine.visible = !!t;
+    if (!t) return;
+    pos.setXYZ(0, p.x + Math.sin(G.turretA) * 2.3, 1.5, p.z + Math.cos(G.turretA) * 2.3);
+    pos.setXYZ(1, t.x, 1.5, t.z);
+    pos.setXYZ(2, t.x, 1.5, t.z);
+    finishAim(true);
+    return;
+  }
   let dx = Math.sin(p.a), dz = Math.cos(p.a);
   let x = p.x + dx * 2.3, z = p.z + dz * 2.3;
   pos.setXYZ(0, x, 1.5, z);
@@ -1487,7 +1498,7 @@ touchEl.addEventListener('pointerdown', (e) => {
     restartAnim(dashEl, 'down');
     return;
   }
-  if (rogue || e.clientX < innerWidth * 0.5) {
+  if (rogue || G.mode === 'gauntlet' || e.clientX < innerWidth * 0.5) {
     if (stick.id !== null) return;
     stick.id = e.pointerId;
     stick.ox = e.clientX;
@@ -1855,6 +1866,8 @@ function resetPlayer() {
   });
   player.pitch.x = player.pitch.v = player.roll.x = player.roll.v = 0;
   player.mesh.visible = true;
+  player.mesh.userData.turret.rotation.y = 0;
+  G.turretA = 0; G.turretTarget = null; G.retarget = 0;
   camYaw = 0;
   snapCam = true;
 }
@@ -1862,6 +1875,7 @@ function resetPlayer() {
 // Target Rush: a bonus stage after every fourth wave. A packed, open arena, double points, Rapid Fire and
 // Spread Shot on the house, and no way to lose. Clear every target for a Perfect bonus.
 const RUSH_TIME = 15;
+const RUSH_KEEP = 2, RUSH_CARRY = 8;   // power-ups that survive a rush, and the seconds they keep (about 4 into the next wave)
 function startRush() {
   G.rush = true;
   G.rushes++;
@@ -1880,8 +1894,8 @@ function startRush() {
   G.comboTimer = 0;
   G.waveHits = 0;
   for (const id of ['rapid', 'spread']) {
-    const pw = G.powers[id];
-    G.powers[id] = { lvl: Math.max(2, pw ? pw.lvl : 0), t: Math.max(RUSH_TIME, pw ? pw.t : 0), dur: Math.max(RUSH_TIME, pw ? pw.dur : 0) };
+    const pw = G.powers[id], t = RUSH_TIME + 1.5;   // clocks run through the countdown
+    G.powers[id] = { lvl: Math.max(2, pw ? pw.lvl : 0), t: Math.max(t, pw ? pw.t : 0), dur: Math.max(t, pw ? pw.dur : 0) };
   }
   setState('countdown');
   ui.touch.hidden = !isTouch;
@@ -1897,6 +1911,11 @@ function endRush(perfect) {
   if (perfect) popup('PERFECT!', player.x, 5, player.z, 'big');
   audio.clear();
   for (const t of targets) if (t.alive) vanish(t);
+  // The rush's haul doesn't carry the next waves: the two power-ups with the most time left stay, for a few seconds.
+  const keep = Object.entries(G.powers).sort((a, b) => b[1].t - a[1].t).slice(0, RUSH_KEEP);
+  if (Object.keys(G.powers).length) popup('POWER-UPS COOL DOWN', player.x, 3.4, player.z, 'bad', keep.length ? `KEEP ${keep.map(([id]) => POWERS[id].name).join(' + ')}` : '');
+  G.powers = {};
+  for (const [id, pw] of keep) G.powers[id] = { ...pw, t: Math.min(pw.t, RUSH_CARRY) };
 }
 
 function waveClear() {
@@ -2041,18 +2060,19 @@ document.addEventListener('visibilitychange', () => {
 // ============================================================
 // Combat
 // ============================================================
-function firePlayer() {
+// Fires along the hull with aim assist, or along a given turret heading (Gauntlet).
+function firePlayer(turretAim = null) {
   const p = player;
   p.cooldown = G.cfg.fireCooldown * G.st.fireMult * powerFx.rapid[powerLvl('rapid')];
   G.shots++;
-  const lock = assistTarget();
-  const aim = lock ? leadAngle(lock) : p.a;
+  const lock = turretAim === null ? assistTarget() : null;
+  const aim = turretAim ?? (lock ? leadAngle(lock) : p.a);
   for (const da of powerFx.spread[powerLvl('spread')]) spawnShell(p.x, p.z, aim + da, 'player', null);
-  const mx = p.x + Math.sin(p.a) * 2.4, mz = p.z + Math.cos(p.a) * 2.4;
+  const muzzle = turretAim ?? p.a, mx = p.x + Math.sin(muzzle) * 2.4, mz = p.z + Math.cos(muzzle) * 2.4;
   flash(mx, 1.5, mz, 0.9, '#fff1b0', 0.12);
   p.recoil = 1;
-  p.speed -= 0.8;
-  p.pitch.v -= 1.6;   // the hull rocks back on its suspension
+  if (turretAim === null) p.speed -= 0.8;
+  p.pitch.v -= turretAim === null ? 1.6 : 0.6;   // the hull rocks back on its suspension
   addShake(0.12);
   audio.shoot();
 }
@@ -2222,7 +2242,7 @@ function destroyTarget(t, opts = {}) {
       audio.bonus();
     }
     // Drops thin out after wave 6 so a big stack of power-ups doesn't carry the late waves.
-    const fade = G.mode === 'arcade' ? Math.max(0.6, 1 - 0.05 * Math.max(0, G.wave - 6)) : 1;
+    const fade = G.rush ? 0.5 : G.mode === 'arcade' ? Math.max(0.6, 1 - 0.05 * Math.max(0, G.wave - 6)) : 1;
     if (Math.random() < def.drop * G.st.dropMult * fade) dropPowerup(t.x, t.z, t.type === 'bonus');
     // Adrenaline: every target destroyed tops up the power-ups already running.
     if (G.st.adrenaline) for (const pw of Object.values(G.powers)) pw.t = Math.min(pw.dur, pw.t + G.st.adrenaline);
@@ -2419,11 +2439,12 @@ function updatePlayer(dt, active) {
   collideWalls(p, TANK_R);
 
   p.cooldown -= dt;
-  if (control && input.fire && p.cooldown <= 0) firePlayer();
+  if (G.mode === 'gauntlet') autoTurret(dt, control);
+  else if (control && input.fire && p.cooldown <= 0) firePlayer();
   if (p.invuln > 0) p.invuln -= dt;
   if (p.bumpCd > 0) p.bumpCd -= dt;
-  // Power-up clocks only run while the wave does.
-  if (G.state === 'play') {
+  // Power-up clocks run through the wave and the breaks between waves (not the perk pick), so a stack fades out.
+  if (G.state === 'play' || G.state === 'clear' || G.state === 'countdown') {
     for (const [id, pw] of Object.entries(G.powers)) if ((pw.t -= dt) <= 0) delete G.powers[id];
   }
   p.recoil = Math.max(0, p.recoil - dt * 6);
@@ -2598,7 +2619,7 @@ const GW = 28;            // half-width of the road (the Arcade arena is 46)
 const G_LEN = 400;        // start wall to far wall
 const G_SEG = 36;         // length of each set piece
 const G_BOSS_Z = 372;     // where the fortress waits
-const G_TIME = 60, G_CHECK_TIME = 15;
+const G_TIME = 50, G_CHECK_TIME = 15;
 const G_START = { x: 0, z: 8 };
 const wallX = (xa, xb, z, d = 2) => [(xa + xb) / 2, z, xb - xa, d];   // a wall across the road from xa to xb
 
@@ -2708,6 +2729,34 @@ function startGauntlet() {
   audio.beep(false);
 }
 
+// Your turret in the Gauntlet: it picks its own targets and fires once lined up, so you can drive and dodge.
+// Threats come first; a barrel only once it's far enough away that the blast can't reach you.
+const TURRET_TRAVERSE = 7, TURRET_RANGE = 36;
+function pickTurretTarget() {
+  const p = player;
+  let best = null, bs = Infinity;
+  for (const t of targets) {
+    if (!t.alive || t.age < 0.35) continue;
+    const dx = t.x - p.x, dz = t.z - p.z, d = Math.hypot(dx, dz);
+    if (d > TURRET_RANGE || (t.type === 'barrel' && d < 9)) continue;
+    if (raycastWalls(p.x, p.z, dx / d, dz / d, Math.max(0, d - t.r), 0.2)) continue;
+    const threat = t.type === 'tank' || t.type === 'turret' || t.type === 'fortress' || t.type === 'drone';
+    const sc = d - (threat ? 12 : 0) + (t.type === 'barrel' ? 4 : 0) - (t === G.turretTarget ? 5 : 0);   // stick with the current one
+    if (sc < bs) { bs = sc; best = t; }
+  }
+  return best;
+}
+function autoTurret(dt, active) {
+  const p = player;
+  G.retarget -= dt;
+  if (G.retarget <= 0) { G.turretTarget = active ? pickTurretTarget() : null; G.retarget = 0.15; }
+  const t = G.turretTarget && G.turretTarget.alive ? G.turretTarget : null;
+  const want = t ? leadAngle(t) : p.a;
+  G.turretA += clamp(angDiff(G.turretA, want), -TURRET_TRAVERSE * dt, TURRET_TRAVERSE * dt);
+  p.mesh.userData.turret.rotation.y = G.turretA - p.a;
+  if (active && t && p.cooldown <= 0 && Math.abs(angDiff(G.turretA, want)) < 0.1) firePlayer(G.turretA);
+}
+
 // Gun emplacement: swings toward you and fires when it has a clear line.
 function updateTurret(t, dt, active) {
   const ai = t.ai, dxp = player.x - t.x, dzp = player.z - t.z, dp = Math.hypot(dxp, dzp);
@@ -2735,7 +2784,9 @@ function updateFortress(t, dt, active) {
   }
   ai.ph += dt;
   const rage = t.hp <= t.maxHp / 2;
-  t.x += clamp(Math.sin(ai.ph * 0.45) * (GW - 9) - t.x, -6 * dt, 6 * dt);
+  const step = clamp(Math.sin(ai.ph * 0.45) * (GW - 9) - t.x, -6 * dt, 6 * dt);
+  t.x += step;
+  t.vx = step / Math.max(dt, 1e-3);   // so shots aimed at it can lead
   const aim = Math.atan2(dxp, dzp);
   t.mesh.userData.turret.rotation.y = aim - t.a;
   if (!active) return;

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Pytank</title>
-<meta name="description" content="A 3D tank game inspired by Atari Combat, with Arcade and Bullet Rogue modes. Runs in the browser on desktop and mobile.">
+<meta name="description" content="A 3D tank game inspired by Atari Combat, with Arcade, Rogue and Gauntlet modes. Runs in the browser on desktop and mobile.">
 <meta name="theme-color" content="#14172b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -25,7 +25,7 @@
     --hot: #ff6a2b;        /* fire button, low timer, alerts */
     --steel: #6c8cff;      /* enemy tanks, bank shots */
     --mint: #6cf0a0;       /* time bonuses, experience */
-    --violet: #b86cff;     /* Bullet Rogue accent, boss */
+    --violet: #b86cff;     /* Rogue accent, boss */
     --steel-2: #56e8ff;    /* uplink charge */
     --panel: rgba(12, 14, 28, 0.66);
     --line: rgba(246, 238, 210, 0.18);
@@ -200,7 +200,7 @@
   .mode-best b { color: var(--gold); }
   .mode-desc { grid-column: 1 / -1; font: 500 14px/1.35 var(--f-body); }
 
-  /* ---------- Bullet Rogue HUD ---------- */
+  /* ---------- Rogue HUD ---------- */
   .hearts { font: 19px/1 var(--f-body); letter-spacing: 1px; white-space: nowrap; color: #ff4b5c; text-shadow: 0 2px 0 var(--shade); }
   .hearts .empty { color: var(--line); text-shadow: none; }
   .hearts .armor { color: var(--mint); margin-left: 4px; }
@@ -380,7 +380,7 @@
       </div>
     </div>
     <div class="cell right">
-      <div class="plate wave-row only-gauntlet"><span id="gDist">FORTRESS <b>372</b>M</span><span>KILLS <b id="gKills">0</b></span></div>
+      <div class="plate wave-row only-gauntlet"><span>LEVEL <b id="gLevel">1</b></span><span id="gDist">BOSS <b>372</b>M</span><span>KILLS <b id="gKills">0</b></span></div>
       <div class="plate wave-row only-arcade no-gauntlet"><span><span id="waveLbl">WAVE</span> <b id="wave">1</b></span><span><b id="left">6</b> LEFT</span><span id="shotsBox">SHOTS <b id="shots">0/12</b></span></div>
       <div class="plate wave-row only-rogue"><span>KILLS <b id="rKills">0</b></span><span id="rStreak" class="streak" hidden></span><span id="rStreakX" class="streak" hidden></span></div>
       <canvas id="radar" width="112" height="112" aria-label="Map"></canvas>
@@ -411,14 +411,14 @@
           <span class="mode-desc">Blast every target before the clock runs out. Stack power-ups, pick a perk every second wave, and save shots for a sharpshooter bonus.</span>
         </button>
         <button id="btnRogue" class="mode rogue">
-          <span class="mode-name">BULLET ROGUE</span>
+          <span class="mode-name">ROGUE</span>
           <span class="mode-best">DEEPEST <b id="bestRogue">&ndash;</b></span>
           <span class="mode-desc">Your turret fires itself. Dodge the bullet storm, hold the uplink to open each exit, and build up your tank as you dive deeper.</span>
         </button>
         <button id="btnGauntlet" class="mode gauntlet">
           <span class="mode-name">GAUNTLET</span>
           <span class="mode-best">BEST <b id="bestGauntlet">&ndash;</b></span>
-          <span class="mode-desc">Drive one long, narrow front line while your turret picks its own targets. Dodge through barricades, turrets and tanks, then destroy the fortress tank before time runs out.</span>
+          <span class="mode-desc">Drive long, narrow front lines while your turret picks its own targets. Dodge through barricades, turrets and tanks, beat the boss at the end of each level, and see how far you get.</span>
         </button>
       </div>
       <div class="pad-hint">D-PAD TO CHOOSE · A TO START</div>
@@ -460,7 +460,7 @@
       <div id="oBuild" class="build" hidden></div>
       <div id="oBest" class="best"></div>
       <button id="btnAgain" class="cta">PLAY AGAIN</button>
-      <button id="btnMenu" class="ghost">TITLE</button>
+      <button id="btnMenu" class="ghost">MAIN MENU</button>
       <div class="pad-hint">D-PAD TO CHOOSE · A TO SELECT</div>
     </div>
   </div>
@@ -685,6 +685,8 @@ const M = {
   enemyVet: lam('#2f3f9e'), enemyVetDark: lam('#1c2766'),   // veteran tanks that take several hits
   turretBase: lam('#4a4f60'),
   fort: lam('#7a3fd0'), fortDark: lam('#4a2390'),
+  ship: lam('#b8c2d6', { flatShading: true }), shipDark: lam('#4a5068'), shipDome: lam('#56e8ff', { emissive: '#0b4a5a' }),
+  shipLight: new THREE.MeshBasicMaterial({ color: '#ff4fa3' }),
   shell: new THREE.MeshBasicMaterial({ color: '#fff3b0' }),
   enemyShell: new THREE.MeshBasicMaterial({ color: '#ff5a3c' }),
 };
@@ -697,7 +699,10 @@ const POWERS = {
   pierce: { name: 'PIERCING', icon: 'pierce', color: '#ff4fa3', w: 2, desc: ['Shells punch through 1 target', 'Through 2 targets', 'Through 3 targets'] },
   shield: { name: 'SHIELD', icon: 'armor', color: '#56e8ff', w: 1.5, desc: ['Blocks one hit'] },     // instant: a charge, up to 3
   time:   { name: '+5 SECONDS', icon: 'clock', color: '#6cf0a0', w: 2, desc: ['Five more seconds'] },  // instant
+  nuke:   { name: 'MEGA BLAST', icon: 'nuke', color: '#ff6a2b', w: 0.5, desc: ['Blasts everything around you'] },  // instant, rare
 };
+const MEGA_R = 20;     // Mega Blast reach
+const MEGA_DMG = 4;    // what it does to armour (light targets just go)
 const POWER_TIME = 9;
 const ADRENALINE_CAP = 4;   // most seconds Adrenaline can add to one power-up before it's picked up again
 const SHIELD_MAX = 3;
@@ -778,7 +783,7 @@ function makeTank(body, dark) {
   const hull = new THREE.Group();
   hull.position.y = 0.8;
   hull.add(part(body, 1.75, 0.7, 3.0, 0, 0.05, 0));
-  // The turret turns on its own in Bullet Rogue; in Arcade it stays locked forward.
+  // The turret turns on its own in Rogue and Gauntlet; in Arcade it stays locked forward.
   const turret = new THREE.Group();
   turret.position.set(0, 0.7, -0.2);
   turret.add(part(dark, 1.35, 0.62, 1.45, 0, 0, 0));
@@ -846,12 +851,32 @@ const TYPES = {
     },
   },
   fortress: {
-    r: 3.6, hp: 40, pts: 5000, drop: 0, radar: '#b86cff', debris: ['#7a3fd0', '#4a2390', '#ffe14f'], blast: BLAST_BARREL, noBar: true,
-    make() {
+    r: 3.6, hp: 40, pts: 5000, drop: 0, radar: '#b86cff', debris: ['#7a3fd0', '#4a2390', '#ffe14f'], blast: BLAST_BARREL, noBar: true, boss: true,
+    make(opts = {}) {
       const g = new THREE.Group(), tank = makeTank(M.fort, M.fortDark);
       for (const sx of [-0.55, 0.55]) tank.userData.turret.add(part(M.fortDark, 0.22, 0.22, 1.4, sx, 0.05, 1.1));
-      tank.scale.setScalar(2.2);
+      tank.scale.setScalar(opts.scale || 2.2);
       g.add(tank); g.userData.turret = tank.userData.turret; return g;
+    },
+  },
+  mothership: {
+    r: 4.3, hp: 55, pts: 6000, drop: 0, radar: '#56e8ff', debris: ['#b8c2d6', '#56e8ff', '#ff4fa3'], blast: BLAST_BARREL, noBar: true, boss: true, flying: true,
+    make() {
+      const g = new THREE.Group(), body = new THREE.Group();
+      const hull = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(4.3, 3.0, 1.0, 16), M.ship));
+      const rim = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.6, 0.3, 16), M.shipDark));
+      rim.position.y = 0.1;
+      const dome = shadowed(new THREE.Mesh(new THREE.SphereGeometry(1.8, 12, 8, 0, TAU, 0, Math.PI / 2), M.shipDome));
+      dome.position.y = 0.5;
+      body.add(hull, rim, dome);
+      for (let i = 0; i < 10; i++) {
+        const a = i * TAU / 10, light = new THREE.Mesh(boxGeo, M.shipLight);
+        light.scale.setScalar(0.45);
+        light.position.set(Math.sin(a) * 4.6, 0.1, Math.cos(a) * 4.6);
+        body.add(light);
+      }
+      body.position.y = 4.6;
+      g.add(body); g.userData.body = body; return g;
     },
   },
   bonus: {
@@ -892,7 +917,7 @@ const G = {
   bounds: { x0: -A, x1: A, z0: -A, z1: A },   // where findSpot may place things
   // Arcade run: perk ranks, running power-ups ({ lvl, t, dur }), shield charges, and the stats they add up to.
   perks: {}, powers: {}, shield: 0, st: null,
-  checks: [], gMeshes: [], fortress: null, won: false, runTime: 0,   // Gauntlet
+  checks: [], gMeshes: [], bosses: [], gLevel: 1, bossZ: 0, gLen: 0, bossesDown: 0, runTime: 0, bossAnnounced: false,   // Gauntlet
   turretA: 0, turretTarget: null, retarget: 0,                          // Gauntlet auto-turret
 };
 
@@ -1309,10 +1334,39 @@ function updateGuide() {
 // ============================================================
 // Audio (all synthesized with WebAudio)
 // ============================================================
-const ARCADE_ROOTS = [45, 43, 41, 40], ROGUE_ROOTS = [38, 46, 48, 45], GAUNTLET_ROOTS = [40, 43, 38, 45];   // Am G F E, Dm Bb C A, E G D A
+// Music in the style of the Atari 8-bit computers' POKEY chip: a square-wave lead, fast chord arpeggios on a thin pulse,
+// an octave-bouncing bass and noise drums. Each mode has its own tune: four chords of one bar each, with an A section and a
+// busier B section. Melodies are MIDI notes per sixteenth (0 = rest); chords are [root, 'm' minor or 'M' major].
+const n_ = (str) => str.trim().split(/\s+/).map((x) => (x === '.' ? 0 : +x));
+const SONGS = {
+  arcade: {
+    chords: [[45, 'm'], [41, 'M'], [48, 'M'], [43, 'M']],   // Am F C G
+    a: n_(`69 . 72 . 76 . 81 . 79 . 76 . 72 . 74 .   77 . 76 . 72 . 69 . 72 . . . 69 . . .
+           67 . 72 . 76 . 79 . 76 . 79 . 81 . 79 .   74 . 71 . 67 . 71 . 74 . . . 76 . 74 .`),
+    b: n_(`81 81 . 81 79 . 76 . 79 . 81 . 84 . 81 .   77 77 . 77 76 . 72 . 76 . 77 . 81 . 77 .
+           76 76 . 76 74 . 72 . 74 . 76 . 79 . 76 .   74 . 79 . 83 . 86 . 83 . 79 . 74 . 71 .`),
+  },
+  rogue: {
+    chords: [[38, 'm'], [46, 'M'], [48, 'M'], [45, 'M']],   // Dm Bb C A
+    a: n_(`74 . 77 . 81 . 77 . 74 . 76 . 77 . 76 .   74 . . . 70 . 74 . 77 . . . 74 . . .
+           76 . 79 . 84 . 79 . 76 . 77 . 79 . 76 .   73 . 76 . 81 . 76 . 73 . . . 69 . . .`),
+    b: n_(`81 . 81 79 77 . 76 . 74 . 77 . 81 . 86 .   86 . 84 . 82 . 81 . 77 . . . 74 . . .
+           84 . 84 82 79 . 76 . 72 . 76 . 79 . 84 .   82 . 81 . 79 . 76 . 73 . 76 . 81 . . .`),
+  },
+  gauntlet: {
+    chords: [[40, 'm'], [48, 'M'], [43, 'M'], [50, 'M']],   // Em C G D
+    a: n_(`76 . . 76 79 . 83 . 81 . 79 . 76 . 74 .   76 . . 76 79 . 84 . 83 . 79 . 76 . . .
+           74 . . 74 79 . 83 . 86 . 83 . 79 . 81 .   78 . . 78 81 . 86 . 84 . 81 . 78 . 74 .`),
+    b: n_(`83 . 83 . 88 . 83 . 79 . 83 . 76 . 79 .   84 . 84 . 88 . 84 . 79 . 84 . 76 . 79 .
+           83 . 83 . 86 . 83 . 79 . 83 . 74 . 79 .   81 . 78 . 74 . 78 . 81 . 86 . 84 . 81 .`),
+  },
+};
+const midiHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+// POKEY divides a ~64 kHz clock by whole numbers, so its notes land a little off the tempered scale. That's the sound.
+const pokeyHz = (f) => { const n = Math.round(63921 / (2 * f) - 1); return n >= 0 && n <= 255 ? 63921 / (2 * (n + 1)) : f; };
 const audio = {
   ctx: null,
-  roots: ARCADE_ROOTS,
+  song: SONGS.arcade,
   init() {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -1339,8 +1393,16 @@ const audio = {
     this.e1.connect(ef); this.e2.connect(ef); ef.connect(this.chug); this.chug.connect(this.eg); this.eg.connect(this.sfx);
     this.e1.start(); this.e2.start(); this.lfo.start();
     this.nextNote = 0; this.step = 0;
+    this.pulse25 = this.pulseWave(c, 0.25);
     this.applyMode();
   },
+  // A pulse wave of the given duty cycle (chip-style thin tone), built from its Fourier series.
+  pulseWave(c, duty) {
+    const N = 32, re = new Float32Array(N), im = new Float32Array(N);
+    for (let k = 1; k < N; k++) { re[k] = Math.sin(2 * Math.PI * k * duty) / (k * Math.PI); im[k] = (1 - Math.cos(2 * Math.PI * k * duty)) / (k * Math.PI); }
+    return c.createPeriodicWave(re, im);
+  },
+  setSong(mode) { this.song = SONGS[mode] || SONGS.arcade; this.step = 0; },
   applyMode() {
     if (!this.ctx) return;
     const m = G.soundMode;
@@ -1351,7 +1413,7 @@ const audio = {
     if (!this.ctx) return;
     const c = this.ctx, t = c.currentTime + when;
     const o = c.createOscillator(), g = c.createGain();
-    o.type = type;
+    if (typeof type === 'string') o.type = type; else o.setPeriodicWave(type);
     o.frequency.setValueAtTime(f0, t);
     if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
     g.gain.setValueAtTime(vol, t);
@@ -1420,27 +1482,38 @@ const audio = {
     this.lfo.frequency.setTargetAtTime(6 + s * 0.65 + load * 2, t, 0.12);
     this.eg.gain.setTargetAtTime(on ? 0.05 + Math.min(s / 20, 1) * 0.06 + load * 0.04 : 0, t, 0.12);
   },
-  // Driving bass loop (Am - G - F - E); tempo climbs with the wave and when time runs low.
-  updateMusic(playing, bpm) {
+  // Tempo climbs with the wave, the depth or the road; 'intense' (boss, low time) stays in the busier B section.
+  updateMusic(playing, bpm, intense = false) {
     if (!this.ctx) return;
     const c = this.ctx;
     if (!playing) { this.nextNote = 0; return; }
     const spb = 60 / bpm / 4;
     if (this.nextNote < c.currentTime) this.nextNote = c.currentTime + 0.05;
     while (this.nextNote < c.currentTime + 0.12) {
-      this.playStep(this.step, this.nextNote - c.currentTime, spb);
+      this.playStep(this.step, this.nextNote - c.currentTime, spb, intense);
       this.nextNote += spb;
-      this.step = (this.step + 1) % 64;
+      this.step = (this.step + 1) % 128;
     }
   },
-  playStep(s, when, spb) {
-    const i = s % 16, root = this.roots[Math.floor(s / 16)];
-    const mf = (m) => 440 * Math.pow(2, (m - 69) / 12);
-    const pattern = { 0: 0, 2: 0, 3: 12, 6: 0, 8: 0, 10: 7, 11: 12, 14: 0 };
-    if (i in pattern) this.tone('square', mf(root + pattern[i]), mf(root + pattern[i]), spb * 0.9, 0.09, when, this.music);
-    if (i % 4 === 0) this.tone('sine', 150, 40, 0.13, 0.5, when, this.music);
-    if (i % 2 === 1) this.noise(0.03, 0.08, 7000, 7000, 'highpass', when, this.music);
-    if (i === 4 || i === 12) this.noise(0.11, 0.2, 1800, 1200, 'bandpass', when, this.music);
+  // One sixteenth: A section for 64 steps, then B for 64. Lead, arpeggio, bass and drums.
+  playStep(s, when, spb, intense) {
+    const song = this.song, i = s % 16, bar = Math.floor(s / 16) % 4, busy = intense || s >= 64;
+    const [root, q] = song.chords[bar], third = q === 'm' ? 3 : 4, out = this.music;
+    const lead = (busy ? song.b : song.a)[s % 64];
+    if (lead) { const f = pokeyHz(midiHz(lead)); this.tone('square', f, f, spb * 1.7, 0.05, when, out); }
+    // Arpeggio: root, third, fifth, octave, two notes per sixteenth.
+    const arp = [0, third, 7, 12];
+    for (let h = 0; h < 2; h++) {
+      const f = pokeyHz(midiHz(root + 24 + arp[(i * 2 + h) % 4]));
+      this.tone(this.pulse25, f, f, spb * 0.45, busy ? 0.022 : 0.014, when + h * spb / 2, out);
+    }
+    // Bass: eighth notes bouncing between the root and its octave.
+    if (i % 2 === 0) { const f = midiHz(root + (i % 4 === 2 ? 12 : 0)); this.tone('square', f, f, spb * 1.6, 0.06, when, out); }
+    // Drums: a chip kick (falling square), a noise snare, and quiet hats.
+    const kick = busy ? i === 0 || i === 6 || i === 8 || i === 11 : i === 0 || i === 8;
+    if (kick) this.tone('square', 180, 45, 0.09, 0.16, when, out);
+    if (i === 4 || i === 12) { this.noise(0.12, 0.17, 2600, 900, 'bandpass', when, out); this.tone('square', 240, 120, 0.05, 0.05, when, out); }
+    if (i % 2 === 1) this.noise(0.025, busy ? 0.06 : 0.04, 8000, 8000, 'highpass', when, out);
   },
 };
 
@@ -1494,7 +1567,7 @@ touchEl.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   const rogue = G.mode === 'rogue';
   if (rogue && (stick.id !== null || overDash(e))) {
-    // Bullet Rogue: a second finger anywhere, or the dash button itself, dashes.
+    // Rogue: a second finger anywhere, or the dash button itself, dashes.
     input.dash = true;
     restartAnim(dashEl, 'down');
     return;
@@ -1649,7 +1722,7 @@ function readInput() {
   input.throttle = clamp(thr, -1, 1);
   input.turn = clamp(turn, -1, 1);
 
-  // Bullet Rogue steers by direction: a screen-space vector, length up to 1.
+  // Rogue steers by direction: a screen-space vector, length up to 1.
   let mx = 0, my = 0;
   if (keys.has('KeyW') || keys.has('ArrowUp')) my += 1;
   if (keys.has('KeyS') || keys.has('ArrowDown')) my -= 1;
@@ -1673,7 +1746,7 @@ const ui = {
   hud: $('hud'), title: $('title'), pause: $('pause'), over: $('over'), touch: touchEl,
   score: $('score'), timer: $('timer'), wave: $('wave'), waveLbl: $('waveLbl'), left: $('left'),
   combo: $('combo'), comboText: $('comboText'), comboBar: $('comboBar'), shots: $('shots'), shotsBox: $('shotsBox'),
-  powers: $('powers'), perks: $('perkRow'), gDist: $('gDist'), gKills: $('gKills'), gBossBar: $('gBossBar'), gBossFill: $('gBossFill'),
+  powers: $('powers'), perks: $('perkRow'), gDist: $('gDist'), gLevel: $('gLevel'), gKills: $('gKills'), gBossBar: $('gBossBar'), gBossFill: $('gBossFill'),
   banner: $('banner'), bannerBig: $('bannerBig'), bannerSmall: $('bannerSmall'),
   fade: $('fade'), hurt: $('hurt'), sound: $('btnSound'), levelup: $('levelup'),
 };
@@ -1712,8 +1785,8 @@ function showTitle() {
   $('bestArcade').textContent = G.best.toLocaleString();
   const rb = store.get('rogueBest', { depth: 0 });
   $('bestRogue').textContent = rb.depth ? `MAZE ${rb.depth}` : '\u2013';
-  const gb = store.get('gauntletBest', 0);
-  $('bestGauntlet').textContent = gb ? gb.toLocaleString() : '\u2013';
+  const gb = store.get('gauntletBest', 0), gl = store.get('gauntletLevel', 0);
+  $('bestGauntlet').textContent = gb ? `${gb.toLocaleString()} · LV ${gl || 1}` : '\u2013';
   ui.title.hidden = false; ui.hud.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.touch.hidden = true; ui.levelup.hidden = true;
   hideBanner();
   bannerTimer = 0;
@@ -1725,7 +1798,7 @@ function startGame(mode = G.mode) {
   G.mode = G.lastMode = mode;
   document.body.classList.toggle('mode-rogue', mode === 'rogue');
   document.body.classList.toggle('mode-gauntlet', mode === 'gauntlet');
-  audio.roots = mode === 'rogue' ? ROGUE_ROOTS : mode === 'gauntlet' ? GAUNTLET_ROOTS : ARCADE_ROOTS;
+  audio.setSong(mode);
   input.dash = false;
   ui.title.hidden = true; ui.over.hidden = true; ui.pause.hidden = true; ui.levelup.hidden = true; ui.hud.hidden = false;
   if (isTouch) document.body.classList.add('is-touch');
@@ -1834,10 +1907,10 @@ function spawnWave(cfg, preview) {
 function addTarget(type, x, z, delay, opts = {}) {
   const def = TYPES[type];
   const t = {
-    type, def, x, z, r: def.r,
+    type, def, x, z, r: opts.r ?? def.r,
     a: rand(0, TAU), vx: 0, vz: 0, age: -delay, alive: true, chain: null, ai: null, life: 0,
     hp: opts.hp ?? def.hp ?? 1, maxHp: 0, pop: 0, bar: null, home: opts.home || null,
-    mesh: def.make(),
+    mesh: def.make(opts),
   };
   t.maxHp = t.hp;
   if (t.maxHp > 1 && !def.noBar) { t.bar = makeBar(def.r * 1.4); t.bar.visible = false; scene.add(t.bar); }
@@ -1850,7 +1923,8 @@ function addTarget(type, x, z, delay, opts = {}) {
   }
   if (type === 'tank') t.ai = { mode: 'wander', timer: 0, wx: x, wz: z, fireCd: rand(...(G.cfg.tankFirst || [1.5, 3])), stuck: 0, blocked: 0, fireEvery: opts.fireEvery || 0 };
   if (type === 'turret') { t.a = Math.PI; t.ai = { aim: Math.PI, fireCd: rand(0.6, 1.4), every: opts.fireEvery || 1.9 }; }
-  if (type === 'fortress') { t.a = Math.PI; t.ai = { awake: false, ph: 0, fireCd: 1.5, ringCd: 4, raged: false }; }
+  if (type === 'fortress') { t.a = Math.PI; t.ai = { awake: false, ph: 0, fireCd: 1.5, ringCd: 4, raged: false, side: opts.side || 0 }; }
+  if (type === 'mothership') { t.a = 0; t.ai = { awake: false, ph: 0, cd: 0, ang: 0, launch: 3, raged: false }; }
   if (type === 'bonus') t.life = 9;
   t.mesh.position.set(x, 0, z);
   t.mesh.rotation.y = t.a;
@@ -2230,7 +2304,7 @@ function destroyTarget(t, opts = {}) {
     const base = t.type === 'tank' ? def.pts * (1 + 0.5 * (t.maxHp - 1)) : def.pts;
     let pts = base * mult * (G.rush ? 2 : 1), cls = '', sub = mult > 1 ? `COMBO x${mult}` : '';
     if (opts.banked) { pts = Math.round(pts * 1.5); cls = 'bank'; sub = 'BANK SHOT' + (mult > 1 ? ` x${mult}` : ''); }
-    else if (opts.chain) sub = 'CHAIN' + (mult > 1 ? ` x${mult}` : '');
+    else if (opts.chain || opts.blast) sub = (opts.blast ? 'BLAST' : 'CHAIN') + (mult > 1 ? ` x${mult}` : '');
     else if (opts.crushed) sub = 'CRUSHED' + (mult > 1 ? ` x${mult}` : '');
     G.score += pts;
     G.kills++;
@@ -2257,7 +2331,10 @@ function destroyTarget(t, opts = {}) {
     }
   }
   if (t.type === 'barrel') explode(t);
-  if (t.type === 'fortress' && G.state === 'play') gauntletWin(t);
+  if (t.def.boss && G.mode === 'gauntlet' && G.state === 'play') {
+    if (targets.some((o) => o.alive && o.def.boss)) popup('ONE DOWN!', t.x, 7, t.z, 'big');
+    else gauntletLevelClear(t);
+  }
   if (t.type !== 'bonus' && G.mode === 'arcade') {
     G.remaining--;
     if (G.remaining <= 0 && G.state === 'play') {
@@ -2326,7 +2403,7 @@ function hitPlayer(dx, dz) {
 
 function dropPowerup(x, z, force) {
   // The bonus saucer always drops a weapon; shields turn up more once enemy tanks shoot back.
-  const pool = Object.keys(POWERS).filter((k) => !force || (k !== 'time' && k !== 'shield')).map((k) => {
+  const pool = Object.keys(POWERS).filter((k) => (!force || (k !== 'time' && k !== 'shield' && k !== 'nuke')) && (k !== 'nuke' || (!G.rush && (G.mode !== 'arcade' || G.wave >= 3)))).map((k) => {
     let w = POWERS[k].w;
     if (k === 'shield') w *= G.shield >= SHIELD_MAX ? 0 : G.cfg.tankShoot || G.cfg.barrels > 2 ? 1.5 : 1;
     return { k, w };
@@ -2361,6 +2438,11 @@ function updatePowerups(dt) {
 
 function grantPower(type, x, z) {
   const P = POWERS[type];
+  if (type === 'nuke') {
+    megaBlast();
+    audio.pickup();
+    return;
+  }
   if (type === 'time') {
     gainTime(5);
     popup(P.name, x, 3, z, 'time');
@@ -2377,6 +2459,28 @@ function grantPower(type, x, z) {
   }
   flash(x, 1.4, z, 2.2, P.color, 0.25);
   audio.pickup();
+}
+
+// Mega Blast: a shockwave from your tank. Light targets within reach go, armour takes a big hit, enemy shells vanish,
+// and you're shielded from your own blast (barrels it sets off included).
+function megaBlast() {
+  const p = player;
+  p.invuln = Math.max(p.invuln, 1.2);
+  for (const s of shells) if (s.owner === 'enemy' && Math.hypot(s.x - p.x, s.z - p.z) < MEGA_R + 6) killShell(s);
+  const hit = targets.filter((t) => t.alive && t.age >= 0 && Math.hypot(t.x - p.x, t.z - p.z) < MEGA_R + t.r);
+  hit.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z));
+  for (const t of hit) hitTarget(t, t.maxHp > 1 ? MEGA_DMG : 1, { blast: true });
+  for (let i = 0; i < 16; i++) {
+    const a = i * TAU / 16;
+    flash(p.x + Math.sin(a) * MEGA_R * 0.45, 1.2, p.z + Math.cos(a) * MEGA_R * 0.45, 4, '#ffd27a', 0.35);
+    flash(p.x + Math.sin(a + 0.2) * MEGA_R * 0.9, 1.2, p.z + Math.cos(a + 0.2) * MEGA_R * 0.9, 3, '#ff6a2b', 0.45);
+  }
+  flash(p.x, 2, p.z, 9, '#ffffff', 0.4);
+  burst(p.x, 1.5, p.z, ['#ffffff', '#ffd27a', '#ff6a2b'], 40, 26, 0.5);
+  popup('MEGA BLAST!', p.x, 5, p.z, 'big', hit.length ? `${hit.length} HIT` : '');
+  addShake(1.3);
+  G.hitstop = Math.max(G.hitstop, 0.3);
+  audio.boom(1.8);
 }
 
 // ============================================================
@@ -2429,7 +2533,7 @@ function updatePlayer(dt, active) {
     if (kn < 0) { p.kx -= kn * n.nx; p.kz -= kn * n.nz; }
   }
   for (const t of targets) {
-    if (!t.alive || t.age < 0) continue;
+    if (!t.alive || t.age < 0 || t.def.flying) continue;
     const dx = p.x - t.x, dz = p.z - t.z, d = Math.hypot(dx, dz), min = TANK_R + t.r;
     if (d >= min || d < 1e-6) continue;
     const into = -(hx * dx + hz * dz) / d * Math.sign(p.speed);
@@ -2522,6 +2626,7 @@ function updateTargets(dt, active) {
     else if (t.type === 'tank') updateEnemyTank(t, dt, active);
     else if (t.type === 'turret') updateTurret(t, dt, active);
     else if (t.type === 'fortress') updateFortress(t, dt, active);
+    else if (t.type === 'mothership') updateMothership(t, dt, active);
     if (!t.alive) continue;
     t.mesh.position.x = t.x;
     t.mesh.position.z = t.z;
@@ -2622,17 +2727,19 @@ function updateEnemyTank(t, dt, active) {
 }
 
 // ============================================================
-// Gauntlet: one long, narrow front line with a fortress tank at the end
+// Gauntlet: a run of long, narrow front lines, each ending at a boss
 // ============================================================
 const GW = 28;            // half-width of the road (the Arcade arena is 46)
-const G_LEN = 400;        // start wall to far wall
 const G_SEG = 36;         // length of each set piece
-const G_BOSS_Z = 372;     // where the fortress waits
 const G_TIME = 50, G_CHECK_TIME = 15;
 const G_START = { x: 0, z: 8 };
+const G_PALETTES = [1, 2, 4, 3, 0];                      // dunes, tundra, jungle, neon, classic
+const G_BOSSES = ['fortress', 'mothership', 'twins'];   // one per level, in turn, tougher each time round
+const BOSS_NAMES = { fortress: 'FORTRESS TANK', mothership: 'MOTHERSHIP', twins: 'TWIN FORTRESSES' };
 const wallX = (xa, xb, z, d = 2) => [(xa + xb) / 2, z, xb - xa, d];   // a wall across the road from xa to xb
 
-// Set pieces: each adds walls to R and enemies to S ([type, x, z, opts]). k runs from 0 at the start to 1 near the end.
+// Set pieces: each adds walls to R and enemies to S ([type, x, z]). k runs from 0 at the start to 1 near the end
+// (and starts higher on later levels).
 const PIECES = {
   pillars(z0, k, R, S) {
     for (const [x, z] of [[-14, 8], [14, 8], [0, 18], [-16, 28], [16, 28]]) R.push([x, z0 + z, 3.5, 3.5]);
@@ -2669,41 +2776,68 @@ const PIECES = {
     S.push(['drone', -12, z0 + 14], ['drone', 12, z0 + 24]);
     if (k > 0.45) S.push(['drone', 0, z0 + 32]);
   },
+  // From level 2: a column of tanks rolling down the road at you, and guns tucked into alcoves on both sides.
+  convoy(z0, k, R, S) {
+    for (const dz of [12, 20, 28]) S.push(['tank', rand(-5, 5), z0 + dz]);
+    S.push(['crate', -18, z0 + 14], ['steel', 18, z0 + 22]);
+    if (k > 0.6) S.push(['tank', rand(-5, 5), z0 + 34]);
+  },
+  crossfire(z0, k, R, S) {
+    R.push([-GW + 4, z0 + 12, 8, 2], [GW - 4, z0 + 24, 8, 2]);
+    S.push(['turret', -GW + 4, z0 + 16], ['turret', GW - 4, z0 + 28], ['steel', -6, z0 + 18], ['steel', 6, z0 + 18], ['barrel', 0, z0 + 21]);
+    if (k > 0.5) S.push(['drone', 0, z0 + 8]);
+  },
 };
 
-function buildGauntlet() {
+// Level L: a longer road (8 set pieces, up to 11), tougher enemies, a new colour scheme, more time and the next boss.
+function gauntletLevel(L) {
+  const lv = L - 1;
+  return { lv, pieces: Math.min(8 + lv, 11), boss: G_BOSSES[lv % G_BOSSES.length], round: Math.floor(lv / G_BOSSES.length), time: G_TIME + Math.min(lv, 3) * 5 };
+}
+
+function buildGauntlet(L) {
+  const lvl = gauntletLevel(L), n = lvl.pieces, yard = 30 + n * G_SEG;
+  G.bossZ = yard + 54;
+  G.gLen = yard + 82;
   clearArena();
   clearRogue();
-  G.palette = PALETTES[1];
+  G.palette = PALETTES[G_PALETTES[lvl.lv % G_PALETTES.length]];
   applyPalette(G.palette);
-  G.bounds = { x0: -GW, x1: GW, z0: 0, z1: G_LEN };
+  G.bounds = { x0: -GW, x1: GW, z0: 0, z1: G.gLen };
   const R = [], S = [];
-  R.push([-GW - 2, G_LEN / 2, 4, G_LEN + 8], [GW + 2, G_LEN / 2, 4, G_LEN + 8], [0, -2, 2 * GW + 8, 4], [0, G_LEN + 2, 2 * GW + 8, 4]);
-  // An easy opener, then the rest in a random order.
+  R.push([-GW - 2, G.gLen / 2, 4, G.gLen + 8], [GW + 2, G.gLen / 2, 4, G.gLen + 8], [0, -2, 2 * GW + 8, 4], [0, G.gLen + 2, 2 * GW + 8, 4]);
+  // An easy opener, then the rest in a random order; later levels add convoys and crossfire.
   const rest = ['barricade', 'chicane', 'gate', 'ambush', 'minefield', 'barricade', 'gate'];
+  if (L >= 2) rest.push('convoy', 'crossfire', 'ambush');
   for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
-  const order = ['pillars', ...rest];
-  order.forEach((kind, i) => PIECES[kind](30 + i * G_SEG, i / (order.length - 1), R, S));
-  // The fortress yard: cover up front, barrels to set off beside it, guns on the flanks.
-  R.push([-15, 336, 4, 4], [15, 336, 4, 4], [0, 348, 6, 2]);
-  S.push(['barrel', -9, 362], ['barrel', 9, 362], ['barrel', 0, 358], ['turret', -21, 360], ['turret', 21, 360], ['fortress', 0, G_BOSS_Z]);
+  const order = ['pillars', ...rest].slice(0, n);
+  order.forEach((kind, i) => PIECES[kind](30 + i * G_SEG, Math.min(1, i / (n - 1) + 0.2 * lvl.lv), R, S));
+  // The boss yard: cover up front, barrels to set off near the boss, guns on the flanks.
+  R.push([-15, yard + 18, 4, 4], [15, yard + 18, 4, 4], [0, yard + 30, 6, 2]);
+  S.push(['barrel', -9, yard + 44], ['barrel', 9, yard + 44], ['barrel', 0, yard + 40], ['turret', -21, yard + 42], ['turret', 21, yard + 42]);
+  const r = lvl.round;
+  if (lvl.boss === 'fortress') S.push(['fortress', 0, G.bossZ, { hp: 40 + 15 * r }]);
+  else if (lvl.boss === 'mothership') S.push(['mothership', 0, G.bossZ - 4, { hp: 55 + 15 * r }]);
+  else for (const side of [-1, 1]) S.push(['fortress', side * 12, G.bossZ, { hp: 26 + 8 * r, scale: 1.6, r: 2.6, side }]);
   for (const r of R) addWall(...r);
   indexWalls();
-  for (const [type, x0, z0] of S) {
+  for (const [type, x0, z0, extra] of S) {
     // Nudge anything that landed in a wall to the nearest clear spot.
     let x = x0, z = z0;
-    for (let k = 0; k < 12 && !clearOfWalls(x, z, TYPES[type].r + 0.4); k++) { x = x0 + rand(-4, 4); z = z0 + rand(-3, 3); }
-    const prog = clamp((z - 30) / (G_SEG * 8), 0, 1);
-    const opts = { home: { x, z } };
-    if (type === 'tank') { opts.hp = 1 + Math.round(prog * 2); opts.fireEvery = 2.2 - prog * 0.9; }
-    if (type === 'turret') { opts.hp = 3 + Math.round(prog); opts.fireEvery = 2.0 - prog * 0.6; }
+    const rad = (extra && extra.r) || TYPES[type].r;
+    for (let k = 0; k < 12 && !clearOfWalls(x, z, rad + 0.4); k++) { x = x0 + rand(-4, 4); z = z0 + rand(-3, 3); }
+    const prog = clamp((z - 30) / (G_SEG * n), 0, 1), lv = lvl.lv;
+    const opts = { home: { x, z }, ...extra };
+    if (type === 'tank') { opts.hp = Math.min(4, 1 + Math.round(prog * 2) + Math.floor(lv / 3)); opts.fireEvery = Math.max(1.1, 2.2 - prog * 0.9 - lv * 0.12); }
+    if (type === 'turret') { opts.hp = 3 + Math.round(prog) + Math.floor(lv / 3); opts.fireEvery = Math.max(1.1, 2.0 - prog * 0.6 - lv * 0.1); }
     const t = addTarget(type, x, z, 0, opts);
     t.age = 1;
     t.mesh.scale.setScalar(1);
   }
-  // Checkpoints: lines across the road that add time.
+  // Checkpoints: lines across the road that add time, a third and two thirds of the way, and one into the boss yard.
   G.checks = [];
-  for (const [z, time, text] of [[30 + 3 * G_SEG, G_CHECK_TIME, `CHECKPOINT +${G_CHECK_TIME}s`], [30 + 6 * G_SEG, G_CHECK_TIME, `CHECKPOINT +${G_CHECK_TIME}s`], [326, 10, 'FORTRESS +10s']]) {
+  const lines = [[30 + Math.floor(n / 3) * G_SEG, G_CHECK_TIME, `CHECKPOINT +${G_CHECK_TIME}s`], [30 + Math.floor(2 * n / 3) * G_SEG, G_CHECK_TIME, `CHECKPOINT +${G_CHECK_TIME}s`], [yard + 8, 10, 'BOSS +10s']];
+  for (const [z, time, text] of lines) {
     const line = new THREE.Mesh(new THREE.PlaneGeometry(2 * GW, 1.4), new THREE.MeshBasicMaterial({ color: '#6cf0a0', transparent: true, opacity: 0.6, depthWrite: false }));
     line.rotation.x = -Math.PI / 2;
     line.position.set(0, 0.06, z);
@@ -2711,31 +2845,44 @@ function buildGauntlet() {
     label.position.set(0, 4.5, z);
     scene.add(line, label);
     G.gMeshes.push(line, label);
-    G.checks.push({ z, time, line, label, passed: false });
+    G.checks.push({ z, time, line, label, passed: false, boss: time === 10 });
   }
-  G.remaining = 999;   // the Gauntlet ends at the fortress, not when everything is gone
+  G.bosses = targets.filter((t) => t.def.boss);
+  G.remaining = 999;   // a level ends at its boss, not when everything is gone
 }
 
 function startGauntlet() {
-  G.cfg = { ...waveConfig(7), bonus: false, tankShoot: true, tankFire: 1.8, tankFirst: [0.4, 1.0], huntRange: 36, droneSpeed: 8, tankSpeed: 7 };
-  G.wave = 1;
-  G.won = false;
+  G.gLevel = 1;
   G.runTime = 0;
-  G.fortress = null;
-  buildGauntlet();
-  G.fortress = targets.find((t) => t.type === 'fortress');
+  G.bossesDown = 0;
+  startGauntletLevel();
+}
+function startGauntletLevel() {
+  const lvl = gauntletLevel(G.gLevel);
+  // Your tank gets a little quicker each level, and so do the enemies.
+  G.cfg = { ...waveConfig(7 + lvl.lv), bonus: false, tankShoot: true, tankFire: 1.8, tankFirst: [0.4, 1.0], huntRange: 36 + lvl.lv * 2, droneSpeed: 8 + lvl.lv, tankSpeed: 7 + lvl.lv * 0.5 };
+  G.wave = 1;
+  G.bossAnnounced = false;
+  buildGauntlet(G.gLevel);
   resetPlayer();
   player.x = G_START.x; player.z = G_START.z;
   fadeIn();
-  G.timeLeft = G_TIME;
+  G.timeLeft = lvl.time;
   G.lastSecond = 99;
   G.shots = 0;
   G.comboTimer = 0;
   G.waveHits = 0;
   setState('countdown');
   ui.touch.hidden = !isTouch;
-  banner('GAUNTLET', `FIGHT TO THE FORTRESS · ${G_TIME}s · CHECKPOINTS ADD TIME`, 1.6);
+  banner(`LEVEL ${G.gLevel}`, `${BOSS_NAMES[lvl.boss]} AHEAD · ${lvl.time}s · CHECKPOINTS ADD TIME`, 1.6);
   audio.beep(false);
+}
+function announceBoss() {
+  if (G.bossAnnounced) return;
+  G.bossAnnounced = true;
+  const boss = gauntletLevel(G.gLevel).boss;
+  banner(BOSS_NAMES[boss], boss === 'twins' ? 'DESTROY BOTH BEFORE TIME RUNS OUT' : 'DESTROY IT BEFORE TIME RUNS OUT', 1.8);
+  audio.bonus();
 }
 
 // Your turret in the Gauntlet: it picks its own targets and fires once lined up, so you can drive and dodge.
@@ -2749,7 +2896,7 @@ function pickTurretTarget() {
     const dx = t.x - p.x, dz = t.z - p.z, d = Math.hypot(dx, dz);
     if (d > TURRET_RANGE || (t.type === 'barrel' && d < 9)) continue;
     if (raycastWalls(p.x, p.z, dx / d, dz / d, Math.max(0, d - t.r), 0.2)) continue;
-    const threat = t.type === 'tank' || t.type === 'turret' || t.type === 'fortress' || t.type === 'drone';
+    const threat = t.type === 'tank' || t.type === 'turret' || t.type === 'drone' || t.def.boss;
     const sc = d - (threat ? 12 : 0) + (t.type === 'barrel' ? 4 : 0) - (t === G.turretTarget ? 5 : 0);   // stick with the current one
     if (sc < bs) { bs = sc; best = t; }
   }
@@ -2783,17 +2930,18 @@ function updateTurret(t, dt, active) {
 }
 
 // The fortress tank: wakes when you come close, strafes across its yard, fires fans and rings, and gets angrier at half armour.
+// Twin fortresses (side -1 and 1) each patrol their own half, a little slower to fire.
 function updateFortress(t, dt, active) {
   const ai = t.ai, dxp = player.x - t.x, dzp = player.z - t.z, dp = Math.hypot(dxp, dzp);
   if (!ai.awake) {
     if (dp > 62 || !active) return;
     ai.awake = true;
-    banner('FORTRESS TANK', 'DESTROY IT BEFORE TIME RUNS OUT', 1.8);
-    audio.bonus();
+    announceBoss();
   }
   ai.ph += dt;
-  const rage = t.hp <= t.maxHp / 2;
-  const step = clamp(Math.sin(ai.ph * 0.45) * (GW - 9) - t.x, -6 * dt, 6 * dt);
+  const rage = t.hp <= t.maxHp / 2, twin = !!ai.side, round = gauntletLevel(G.gLevel).round;
+  const amp = twin ? GW / 2 - 6 : GW - 9, phase = ai.side > 0 ? Math.PI : 0;
+  const step = clamp(ai.side * GW / 2 + Math.sin(ai.ph * 0.45 + phase) * amp - t.x, -6 * dt, 6 * dt);
   t.x += step;
   t.vx = step / Math.max(dt, 1e-3);   // so shots aimed at it can lead
   const aim = Math.atan2(dxp, dzp);
@@ -2802,46 +2950,87 @@ function updateFortress(t, dt, active) {
   if (rage && !ai.raged) {
     ai.raged = true;
     popup('ENRAGED!', t.x, 8, t.z, 'big');
-    for (const sx of [-6, 6]) addTarget('drone', clamp(t.x + sx, -GW + 3, GW - 3), t.z - 6, 0.2, { home: { x: t.x + sx, z: t.z - 6 } });
+    for (const sx of twin ? [0] : [-6, 6]) addTarget('drone', clamp(t.x + sx, -GW + 3, GW - 3), t.z - 6, 0.2, { home: { x: t.x + sx, z: t.z - 6 } });
   }
   ai.fireCd -= dt; ai.ringCd -= dt;
   if (ai.fireCd <= 0 && dp < 70) {
     const n = rage ? 5 : 3;
     for (let i = 0; i < n; i++) spawnShell(t.x, t.z, aim + (i - (n - 1) / 2) * 0.17, 'enemy', t);
     flash(t.x + Math.sin(aim) * 5, 3, t.z + Math.cos(aim) * 5, 2, '#ff8a5a', 0.15);
-    ai.fireCd = rage ? 1.0 : 1.4;
+    ai.fireCd = (rage ? 1.0 : 1.4) * (twin ? 1.3 : 1);
     audio.enemyShot();
   }
   if (ai.ringCd <= 0 && dp < 50) {
-    for (let i = 0; i < 12; i++) spawnShell(t.x, t.z, ai.ph + i * TAU / 12, 'enemy', t);
-    ai.ringCd = rage ? 4.5 : 6.5;
+    const n = (twin ? 8 : 12) + 2 * round;
+    for (let i = 0; i < n; i++) spawnShell(t.x, t.z, ai.ph + i * TAU / n, 'enemy', t);
+    ai.ringCd = (rage ? 4.5 : 6.5) * (twin ? 1.2 : 1);
     audio.boom(0.6);
   }
 }
 
-function gauntletWin(t) {
-  const timeBonus = Math.ceil(Math.max(0, G.timeLeft)) * 200;
-  G.score += timeBonus;
-  G.won = true;
-  setState('over');
+// The mothership: hovers in a figure eight over its yard, sprays spiral bursts and launches drone swarms.
+function updateMothership(t, dt, active) {
+  const ai = t.ai, dxp = player.x - t.x, dzp = player.z - t.z, dp = Math.hypot(dxp, dzp);
+  t.body.rotation.y += dt * 1.6;
+  t.body.position.y = 4.6 + Math.sin(t.age * 2) * 0.3;
+  if (!ai.awake) {
+    if (dp > 64 || !active) return;
+    ai.awake = true;
+    announceBoss();
+  }
+  ai.ph += dt;
+  const rage = t.hp <= t.maxHp / 2;
+  const sx = clamp(Math.sin(ai.ph * 0.5) * (GW - 9) - t.x, -7 * dt, 7 * dt), sz = clamp(t.home.z + Math.sin(ai.ph) * 7 - t.z, -7 * dt, 7 * dt);
+  t.x += sx; t.z += sz;
+  t.vx = sx / Math.max(dt, 1e-3); t.vz = sz / Math.max(dt, 1e-3);
+  if (!active) return;
+  if (rage && !ai.raged) { ai.raged = true; popup('ENRAGED!', t.x, 9, t.z, 'big'); ai.launch = 0; }
+  // Spiral: 2.6 s of rotating arms, then a breather.
+  if ((ai.ph % 4.4) < 2.6 && dp < 70) {
+    ai.cd -= dt;
+    if (ai.cd <= 0) {
+      const arms = rage ? 4 : 3;
+      ai.cd = rage ? 0.14 : 0.18;
+      ai.ang += 0.36;
+      for (let k = 0; k < arms; k++) spawnShell(t.x, t.z, ai.ang + k * TAU / arms, 'enemy', t);
+      audio.eshot();
+    }
+  }
+  // Drone swarm, as long as there aren't too many already.
+  ai.launch -= dt;
+  if (ai.launch <= 0) {
+    ai.launch = rage ? 6 : 8;
+    if (targets.filter((o) => o.alive && o.type === 'drone').length < 8) {
+      for (const ox of [-5, 0, 5]) addTarget('drone', clamp(t.x + ox, -GW + 3, GW - 3), t.z - 5, 0.2, { home: { x: t.x + ox, z: t.z - 10 } });
+      flash(t.x, 4, t.z, 4, '#56e8ff', 0.3);
+      audio.bonus();
+    }
+  }
+}
+
+// Every boss on the level is down: bank the time, clear the road, and move on to the next level.
+function gauntletLevelClear(t) {
+  const timeBonus = Math.ceil(Math.max(0, G.timeLeft)) * 200, levelBonus = 2500 * G.gLevel;
+  G.score += timeBonus + levelBonus;
+  G.bossesDown++;
+  setState('clear');
   G.hitstop = 0.5;
   for (let k = 0; k < 6; k++) flash(t.x + rand(-5, 5), 2.5, t.z + rand(-5, 5), 8, '#ffb347', 0.7);
-  burst(t.x, 2, t.z, ['#7a3fd0', '#ffe14f', '#ffffff'], 40, 22, 0.7);
+  burst(t.x, 2, t.z, [...t.def.debris, '#ffffff'], 40, 22, 0.7);
   addShake(1.3);
   for (const s of shells) if (s.owner === 'enemy') killShell(s);
   for (const o of targets) if (o.alive && (o.type === 'tank' || o.type === 'turret' || o.type === 'drone')) vanish(o);
-  banner('VICTORY!', `FORTRESS DESTROYED · TIME BONUS +${timeBonus.toLocaleString()}`, 2.4);
+  banner(`LEVEL ${G.gLevel} CLEAR!`, `TIME BONUS +${timeBonus.toLocaleString()} · LEVEL BONUS +${levelBonus.toLocaleString()}`, 2.4);
   audio.clear();
-  ui.touch.hidden = true;
   releaseAllPointers();
 }
 
 function showGauntletOver() {
   const best = store.get('gauntletBest', 0), isBest = G.score > best;
   if (isBest) store.set('gauntletBest', G.score);
-  const dist = Math.round(clamp(player.z / G_BOSS_Z, 0, 1) * 100);
-  showOver(G.won ? 'VICTORY' : G.forfeit ? 'FORFEIT' : 'TIME UP',
-    [['SCORE', G.score.toLocaleString()], ['TIME', fmtTime(G.runTime)], ['DISTANCE', G.won ? 'FORTRESS DOWN' : `${dist}%`], ['TARGETS', G.kills]],
+  if (G.gLevel > store.get('gauntletLevel', 0)) store.set('gauntletLevel', G.gLevel);
+  showOver(G.forfeit ? 'FORFEIT' : 'TIME UP',
+    [['SCORE', G.score.toLocaleString()], ['LEVEL', G.gLevel], ['BOSSES', G.bossesDown], ['TARGETS', G.kills], ['TIME', fmtTime(G.runTime)], ['BEST COMBO', 'x' + Math.max(1, G.bestCombo)]],
     isBest ? 'NEW BEST SCORE!' : `BEST <b>${best.toLocaleString()}</b>`, isBest && G.score > 0);
 }
 
@@ -2871,7 +3060,7 @@ function updateGauntlet(dt) {
       c.passed = true;
       gainTime(c.time);
       popup(`+${c.time}s`, player.x, 4, player.z, 'time');
-      banner(c.z > 300 ? 'FORTRESS AHEAD' : 'CHECKPOINT', `+${c.time} SECONDS`, 1.2);
+      banner(c.boss ? 'BOSS AHEAD' : 'CHECKPOINT', `+${c.time} SECONDS`, 1.2);
       c.line.material.color.set('#ffffff');
       c.label.visible = false;
       audio.clear();
@@ -2890,15 +3079,16 @@ function updateGauntlet(dt) {
   updateAim();
   updateHud();
 
-  const on = G.state === 'play' || G.state === 'countdown';
+  const on = G.state === 'play' || G.state === 'countdown' || G.state === 'clear';
   audio.engine(player.speed, on, G.state === 'play' ? Math.abs(input.throttle) : 0);
-  const bossOn = G.fortress && G.fortress.alive && G.fortress.ai.awake;
-  audio.updateMusic(on, 128 + Math.min(20, player.z / 20) + (bossOn ? 18 : 0) + (G.state === 'play' && G.timeLeft < 10 ? 12 : 0));
-  if (G.state === 'over' && G.stateTime > (G.won ? 2.4 : 1.5) && ui.over.hidden) showGauntletOver();
+  const bossOn = G.bosses.some((b) => b.alive && b.ai.awake), low = G.state === 'play' && G.timeLeft < 10;
+  audio.updateMusic(on, 128 + Math.min(20, player.z / 20) + Math.min(12, (G.gLevel - 1) * 3) + (bossOn ? 18 : 0) + (low ? 12 : 0), bossOn || low);
+  if (G.state === 'clear' && G.stateTime > 2.8) { G.gLevel++; startGauntletLevel(); }
+  if (G.state === 'over' && G.stateTime > 1.5 && ui.over.hidden) showGauntletOver();
 }
 
 // ============================================================
-// Bullet Rogue: rules and data
+// Rogue: rules and data
 // ============================================================
 const CELL = 12;                 // maze cell size
 const MAZE_T = 1.6;              // maze wall thickness
@@ -2970,6 +3160,7 @@ const ICONS = {
   pulse:    { d: 'M14 12a2 2 0 1 1-4 0a2 2 0 1 1 4 0M17.5 12a5.5 5.5 0 1 1-11 0a5.5 5.5 0 1 1 11 0M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0' },
   clock:    { d: 'M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0M12 6.5V12l3.5 2.5' },
   combo:    { d: 'M9 15l6-6M10.5 6.5l1.8-1.8a4 4 0 0 1 5.7 5.7l-1.8 1.8M13.5 17.5l-1.8 1.8a4 4 0 0 1-5.7-5.7l1.8-1.8' },
+  nuke:     { fill: true, d: 'M12 1.5l2.6 6.2L21 5l-2.7 6.6L23 15l-6.6.6L15 22l-3-5.5L9 22l-1.4-6.4L1 15l4.7-3.4L3 5l6.4 2.7z' },
 };
 function iconSvg(id) {
   const ic = ICONS[id];
@@ -2981,7 +3172,7 @@ const xpNeed = (lvl) => Math.round(8 + (lvl - 1) * 4 + Math.pow(lvl - 1, 1.25) *
 const ebSpeed = (base) => base * Math.min(1.6, 1 + 0.035 * (RG.depth - 1));
 
 // ============================================================
-// Bullet Rogue: models
+// Rogue: models
 // ============================================================
 const hexGeo = new THREE.CylinderGeometry(1, 1, 1, 6);
 const crawlerGeo = new THREE.OctahedronGeometry(0.9);
@@ -3224,7 +3415,7 @@ gateLocked.position.y = gateOpen.position.y = 6.8;
 gate.add(gateLocked, gateOpen);
 
 // ============================================================
-// Bullet Rogue: run state
+// Rogue: run state
 // ============================================================
 const RG = {
   depth: 1, level: 1, xp: 0, xpNext: xpNeed(1), pending: 0, hearts: 5, kills: 0, time: 0, grazes: 0,
@@ -3295,7 +3486,7 @@ function clearRogue() {
 }
 
 // ============================================================
-// Bullet Rogue: maze
+// Rogue: maze
 // ============================================================
 // Cell walls as bits: +z, +x, -z, -x.
 const DIRS = [
@@ -3574,7 +3765,7 @@ function populateMaze(m, dist, entry, exit, boss) {
 }
 
 // ============================================================
-// Bullet Rogue: enemies
+// Rogue: enemies
 // ============================================================
 function spawnFoe(kind, x, z, home = null, elite = false) {
   const def = FOES[kind], s = (1 + 0.22 * (RG.depth - 1)) * (elite ? 3 : 1);
@@ -3871,7 +4062,7 @@ const OVERDRIVE_RATE = 1.5;
 const streakMult = () => 1 + Math.min(RG.streak, 40) * 0.015;
 
 // ============================================================
-// Bullet Rogue: player
+// Rogue: player
 // ============================================================
 function updateRoguePlayer(dt, active) {
   const p = player, st = RG.st;
@@ -4240,7 +4431,7 @@ function updateOrbs(dt, active) {
 }
 
 // ============================================================
-// Bullet Rogue: pickups and equipment
+// Rogue: pickups and equipment
 // ============================================================
 function dropBoost(x, z, type) {
   if (!type) {
@@ -4480,7 +4671,7 @@ function rogueDeath() {
 }
 
 // ============================================================
-// Bullet Rogue: level-up cards
+// Rogue: level-up cards
 // ============================================================
 let luChoices = [], luKind = 'level', luOpenAt = 0, luNewSlot = false;
 const skillMax = (id) => SKILLS[id].max ?? Infinity;
@@ -4753,7 +4944,7 @@ function addLoRow(el, r) {
 }
 
 // ============================================================
-// Bullet Rogue: frame
+// Rogue: frame
 // ============================================================
 function updateRogue(dt) {
   if (G.state === 'countdown' && G.stateTime >= 1.5) {
@@ -4790,7 +4981,7 @@ function updateRogue(dt) {
   updateRogueHud();
   const on = G.state === 'play' || G.state === 'countdown' || G.state === 'clear';
   audio.engine(player.speed, on, active ? Math.min(1, Math.hypot(input.mx, input.my)) : 0);
-  audio.updateMusic(on, Math.min(118 + RG.depth * 4, 168) + (RG.boss ? 12 : 0));
+  audio.updateMusic(on, Math.min(118 + RG.depth * 4, 168) + (RG.boss ? 12 : 0), !!RG.boss || RG.inUplink);
 
   if (G.state === 'play') {
     while (RG.xp >= RG.xpNext) {
@@ -4949,7 +5140,7 @@ function updateRogueGuide() {
 }
 
 // ============================================================
-// Bullet Rogue: HUD and results
+// Rogue: HUD and results
 // ============================================================
 const rui = {
   hearts: $('heartsFull'), heartsEmpty: $('heartsEmpty'), armor: $('armorPips'), level: $('rLevel'), xp: $('rXp'),
@@ -5159,13 +5350,17 @@ function updateHud() {
 }
 
 function updateGauntletHud() {
-  const f = G.fortress, awake = f && f.alive && f.ai.awake;
-  const togo = Math.max(0, Math.round(G_BOSS_Z - player.z));
-  const dist = awake ? '<b>ENGAGED</b>' : f && !f.alive ? '<b>DOWN</b>' : `FORTRESS <b>${togo}</b>M`;   // numbers only
+  const live = G.bosses.filter((b) => b.alive), awake = live.some((b) => b.ai.awake);
+  const togo = Math.max(0, Math.round(G.bossZ - player.z));
+  const dist = awake ? '<b>ENGAGED</b>' : !live.length ? '<b>CLEAR</b>' : `BOSS <b>${togo}</b>M`;   // numbers only
   if (hudCache.gDist !== dist) { hudCache.gDist = dist; ui.gDist.innerHTML = dist; }
+  setText(ui.gLevel, 'gLevel', String(G.gLevel));
   setText(ui.gKills, 'gKills', String(G.kills));
-  if (ui.gBossBar.hidden === !!awake) ui.gBossBar.hidden = !awake;
-  if (awake) ui.gBossFill.style.transform = `scaleX(${clamp(f.hp / f.maxHp, 0, 1).toFixed(3)})`;
+  if (ui.gBossBar.hidden === awake) ui.gBossBar.hidden = !awake;
+  if (awake) {
+    const hp = G.bosses.reduce((a, b) => a + Math.max(0, b.alive ? b.hp : 0), 0), max = G.bosses.reduce((a, b) => a + b.maxHp, 0);
+    ui.gBossFill.style.transform = `scaleX(${clamp(hp / max, 0, 1).toFixed(3)})`;
+  }
 }
 
 // Running power-ups under the timer: icon, level pips, and a sweep for the time left. Shield charges sit at the end.
@@ -5276,7 +5471,7 @@ function updateArcade(dt) {
   const engineOn = G.state === 'play' || G.state === 'countdown' || G.state === 'clear';
   audio.engine(player.speed, engineOn, G.state === 'play' ? Math.abs(input.throttle) : 0);
   const bpm = 112 + Math.min(G.wave - 1, 14) * 5 + (G.state === 'play' && G.timeLeft < 10 ? 16 : 0) + (G.rush ? 20 : 0);
-  audio.updateMusic(G.state === 'play' || G.state === 'countdown' || G.state === 'clear', bpm);
+  audio.updateMusic(G.state === 'play' || G.state === 'countdown' || G.state === 'clear', bpm, G.rush || (G.state === 'play' && G.timeLeft < 10));
 
   // Every second wave ends with a perk pick; the next wave starts once one is chosen.
   if (G.state === 'clear' && G.stateTime > 2.3) {
@@ -5341,7 +5536,7 @@ showTitle();
 $('loading').remove();
 requestAnimationFrame((t) => { last = t; frame(t); });
 // Debug handle for poking at the game from the browser console.
-window.__pytank = { G, RG, player, input, pbar, uplink, get targets() { return targets; }, get ebs() { return ebs; }, get pbs() { return pbs; }, get powerups() { return powerups; }, startWave, buildMaze, rogueStats, grantPower, hitPlayer, rogueHurt, ebShot, dropBoost, spawnFoe, killEnemy, destroyTarget, openLevelUp, hitTarget, raycastWalls };
+window.__pytank = { G, RG, player, input, pbar, uplink, get targets() { return targets; }, get ebs() { return ebs; }, get pbs() { return pbs; }, get powerups() { return powerups; }, startWave, buildMaze, rogueStats, grantPower, hitPlayer, rogueHurt, ebShot, dropBoost, spawnFoe, killEnemy, destroyTarget, openLevelUp, hitTarget, raycastWalls, audio };
 </script>
 </body>
 </html>

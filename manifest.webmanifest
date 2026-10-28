@@ -1,7 +1,7 @@
 {
   "name": "Pytank",
   "short_name": "Pytank",
-  "description": "A 3D tank game inspired by Atari Combat, with Arcade and Bullet Rogue modes.",
+  "description": "A 3D tank game inspired by Atari Combat, with Arcade, Rogue and Gauntlet modes.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

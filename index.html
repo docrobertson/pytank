@@ -3168,7 +3168,8 @@ function iconSvg(id) {
     : `<path d="${ic.d}" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`;
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${main}${ic.d2 ? `<path d="${ic.d2}" fill="currentColor"/>` : ''}</svg>`;
 }
-const xpNeed = (lvl) => Math.round(8 + (lvl - 1) * 4 + Math.pow(lvl - 1, 1.25) * 1.5);
+const xpNeed = (lvl) => Math.round(10 + (lvl - 1) * 6 + Math.pow(lvl - 1, 1.5) * 1.2);   // level 10 needs ~96, level 20 ~223
+const XP_DEPTH = 0.18;   // experience per kill and for fast clears grows this much per maze
 const ebSpeed = (base) => base * Math.min(1.6, 1 + 0.035 * (RG.depth - 1));
 
 // ============================================================
@@ -3256,7 +3257,7 @@ const FOES = {
     },
   },
   boss: {
-    r: 3.4, hp: 1000, xp: 100, speed: 2.8, scale: 2.1, debris: ['#6a3fd0', '#3c2390', '#ffe14f'],
+    r: 3.4, hp: 1000, xp: 60, speed: 2.8, scale: 2.1, debris: ['#6a3fd0', '#3c2390', '#ffe14f'],
     make() {
       const g = makeTank(FM.boss, FM.bossDark);
       for (const sx of [-0.55, 0.55]) g.userData.turret.add(part(FM.bossDark, 0.22, 0.22, 1.4, sx, 0.05, 1.1));
@@ -3749,14 +3750,14 @@ function populateMaze(m, dist, entry, exit, boss) {
     const i = pick(roam) ?? pick(free(3));
     if (i !== null && i !== undefined) { used.add(i); const q = spot(i, 1); spawnFoe('runner', q.x, q.z); }
   }
-  // Supplies: a gear crate waits in the deepest dead end from maze 2, boosts in the others.
+  // Supplies: on even mazes a gear crate waits in the deepest dead end; one boost hides in another.
   const ends = all.filter((i) => openings(i) === 1 && i !== entry && i !== exit && !used.has(i));
-  if (!boss && d >= 2 && ends.length) {
+  if (!boss && d >= 2 && d % 2 === 0 && ends.length) {
     ends.sort((a, b) => dist[b] - dist[a]);
     const c = cellCenter(m, ends.shift());
     dropBoost(c.x, c.z, 'cache');
   }
-  for (let k = 0; k < 2; k++) {
+  for (let k = 0; k < 1; k++) {
     const i = pick(ends);
     if (i === null) break;
     const c = cellCenter(m, i);
@@ -4028,20 +4029,20 @@ function killEnemy(e, noXp = false) {
     flash(player.x, 1.4, player.z, 4, '#ffe14f', 0.3);
     audio.bonus();
   }
-  dropXp(e.x, e.z, e.def.xp * (1 + 0.25 * (RG.depth - 1)) * (e.elite ? 3 : 1) * streakMult());
-  if (e.elite) { popup('ELITE DOWN', e.x, 4, e.z, 'time'); dropBoost(e.x, e.z); }
-  else if (e.kind === 'heavy' && Math.random() < 0.25) dropBoost(e.x, e.z);
-  else if ((e.kind === 'sentry' || e.kind === 'spinner') && Math.random() < 0.06) dropBoost(e.x, e.z);
+  dropXp(e.x, e.z, e.def.xp * (1 + XP_DEPTH * (RG.depth - 1)) * (e.elite ? 3 : 1) * streakMult());
+  // Pickups are permanent upgrades, so they're kept scarce.
+  if (e.elite) { popup('ELITE DOWN', e.x, 4, e.z, 'time'); if (Math.random() < 0.5) dropBoost(e.x, e.z); }
+  else if (e.kind === 'heavy' && Math.random() < 0.12) dropBoost(e.x, e.z);
+  else if ((e.kind === 'sentry' || e.kind === 'spinner') && Math.random() < 0.03) dropBoost(e.x, e.z);
   if (e.kind === 'runner') {
-    popup('LOOT!', e.x, 4, e.z, 'big', '+2 PICKUPS');
-    dropBoost(e.x - 0.8, e.z);
-    dropBoost(e.x + 0.8, e.z);
+    popup('LOOT!', e.x, 4, e.z, 'big', '+1 PICKUP');
+    dropBoost(e.x, e.z);
     audio.bonus();
   }
   if (e.kind === 'core') {
     RG.coresLeft--;
     popup('CORE DOWN', e.x, 5, e.z, 'big', '+35% UPLINK');
-    dropBoost(e.x, e.z);
+    if (Math.random() < 0.5) dropBoost(e.x, e.z);
     G.hitstop = Math.max(G.hitstop, 0.05);
     addCharge(0.35);
   }
@@ -4367,8 +4368,8 @@ function graze(b) {
 }
 
 // Recovery time after a hit shrinks as the mazes go deeper, so a big build still has to dodge.
-const hurtGrace = (d = RG.depth) => Math.max(0.6, 2 - 0.07 * (d - 1));
-const blockGrace = (d = RG.depth) => Math.max(0.35, 0.9 - 0.025 * (d - 1));
+const hurtGrace = (d = RG.depth) => Math.max(0.5, 1.5 - 0.05 * (d - 1));
+const blockGrace = (d = RG.depth) => Math.max(0.3, 0.7 - 0.02 * (d - 1));
 function rogueHurt() {
   const p = player;
   if (p.invuln > 0 || G.state !== 'play') return;
@@ -4648,7 +4649,7 @@ function mazeClear() {
   RG.rerolls = Math.min(3, RG.rerolls + 1);
   // Beating par pays experience, so pushing on is worth it.
   const par = 50 + 12 * RG.depth;
-  const fast = Math.max(0, Math.round((par - RG.mazeTime) * 0.4 * (1 + 0.25 * (RG.depth - 1))));
+  const fast = Math.max(0, Math.round((par - RG.mazeTime) * 0.4 * (1 + XP_DEPTH * (RG.depth - 1))));
   if (fast) gainXp(fast);
   const parts = [healed ? '+1 ♥ REPAIRED' : `${RG.kills} KILLS`];
   if (fast) parts.push(`FAST CLEAR +${fast} XP`);

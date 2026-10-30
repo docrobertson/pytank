@@ -83,6 +83,10 @@
   #timer.gain { animation: gain 0.6s ease-out; }
   @keyframes gain { from { transform: scale(1.35); color: var(--mint); } to { transform: scale(1); } }
   #powers { justify-content: center; flex-wrap: wrap; max-width: 46vw; }
+  .ammo { display: flex; gap: 3px; }
+  .ammo i { width: 7px; height: 11px; border-radius: 1px; background: var(--gold); box-shadow: 0 1px 0 var(--shade); }
+  .ammo i.used { background: var(--line); box-shadow: none; }
+  .ammo.full i { background: var(--hot); }
   #powers .slot.ending { animation: blink 0.3s steps(2, jump-none) infinite; }
   .wave-row { display: flex; gap: 10px; align-items: baseline; font: 700 13px/1 var(--f-pixel); letter-spacing: 0.08em; }
   .wave-row b { color: var(--gold); }
@@ -299,6 +303,8 @@
     .hearts { font-size: 15px; white-space: normal; overflow-wrap: anywhere; max-width: 112px; }
     #rGoal { font-size: 10px; letter-spacing: 0.08em; }
     #bossBar, #gBossBar { width: 28vw; }
+    .ammo { gap: 2px; }
+    .ammo i { width: 4px; height: 9px; }
     .lo-row .nm { font-size: 13px; }
     .lo-row .fx { font-size: 11px; }
     .slot { width: 28px; height: 28px; }
@@ -372,6 +378,7 @@
     <div class="cell mid">
       <div id="timer" class="only-arcade">30</div>
       <div id="powers" class="slots only-arcade"></div>
+      <div id="ammo" class="ammo only-arcade" hidden aria-label="Shells in the air"></div>
       <div id="gBossBar" class="only-gauntlet" hidden><b id="gBossFill"></b></div>
       <div class="rogue-mid only-rogue">
         <div id="rDepth">MAZE 1</div>
@@ -704,6 +711,10 @@ const POWERS = {
 const MEGA_R = 20;     // Mega Blast reach
 const MEGA_DMG = 4;    // what it does to armour (light targets just go)
 const POWER_TIME = 9;
+// Like Combat's one missile at a time, only roomier: a cap on your shells in the air. A hit frees its slot at once,
+// so accurate fire stays quick while a wide spread of ricochets clogs the rack and slows you down.
+const SHELL_CAP = 20;
+const SPREAD_RELOAD = 0.08;   // each extra shell in a volley adds this much to the reload
 const ADRENALINE_CAP = 4;   // most seconds Adrenaline can add to one power-up before it's picked up again
 const SHIELD_MAX = 3;
 const ROMAN = ['', '', ' II', ' III'];
@@ -716,7 +727,7 @@ const powerFx = {
 };
 // Arcade perks: a pick of three every second wave, kept for the whole run.
 const PERKS = {
-  reload:     { name: 'Autoloader', icon: 'reload', color: '#ff8a2a', desc: '+10% fire rate', fx: (r) => `+${r * 10}% fire rate` },
+  reload:     { name: 'Autoloader', icon: 'reload', color: '#ff8a2a', max: 5, desc: '+10% fire rate', fx: (r) => `+${r * 10}% fire rate` },
   velocity:   { name: 'Long Barrel', icon: 'velocity', color: '#f2c53d', max: 6, desc: '+10% shell speed and range', fx: (r) => `+${r * 10}% shell speed` },
   engine:     { name: 'Engine Tune', icon: 'engine', color: '#3fd7ff', max: 5, desc: '+5% top speed', fx: (r) => `+${r * 5}% top speed` },
   overclock:  { name: 'Overclock', icon: 'nitro', color: '#7d97ff', max: 3, desc: 'Power-ups last 20% longer', fx: (r) => `power-ups last ${(POWER_TIME * (1 + 0.2 * r)).toFixed(1)} s` },
@@ -1746,7 +1757,7 @@ const ui = {
   hud: $('hud'), title: $('title'), pause: $('pause'), over: $('over'), touch: touchEl,
   score: $('score'), timer: $('timer'), wave: $('wave'), waveLbl: $('waveLbl'), left: $('left'),
   combo: $('combo'), comboText: $('comboText'), comboBar: $('comboBar'), shots: $('shots'), shotsBox: $('shotsBox'),
-  powers: $('powers'), perks: $('perkRow'), gDist: $('gDist'), gLevel: $('gLevel'), gKills: $('gKills'), gBossBar: $('gBossBar'), gBossFill: $('gBossFill'),
+  powers: $('powers'), ammo: $('ammo'), perks: $('perkRow'), gDist: $('gDist'), gLevel: $('gLevel'), gKills: $('gKills'), gBossBar: $('gBossBar'), gBossFill: $('gBossFill'),
   banner: $('banner'), bannerBig: $('bannerBig'), bannerSmall: $('bannerSmall'),
   fade: $('fade'), hurt: $('hurt'), sound: $('btnSound'), levelup: $('levelup'),
 };
@@ -2136,13 +2147,18 @@ document.addEventListener('visibilitychange', () => {
 // Combat
 // ============================================================
 // Fires along the hull with aim assist, or along a given turret heading (Gauntlet).
+const liveShells = () => shells.reduce((n, s) => n + (s.owner === 'player' && !s.dead ? 1 : 0), 0);
 function firePlayer(turretAim = null) {
-  const p = player;
-  p.cooldown = G.cfg.fireCooldown * G.st.fireMult * powerFx.rapid[powerLvl('rapid')];
+  const p = player, free = SHELL_CAP - liveShells();
+  if (free <= 0) { p.cooldown = 0.04; return; }   // rack full: wait for a shell to land
+  let fan = powerFx.spread[powerLvl('spread')];
+  // A nearly full rack fires only the middle of the spread.
+  if (fan.length > free) { const cut = (fan.length - free) >> 1; fan = fan.slice(cut, cut + free); }
+  p.cooldown = G.cfg.fireCooldown * G.st.fireMult * powerFx.rapid[powerLvl('rapid')] * (1 + SPREAD_RELOAD * (powerFx.spread[powerLvl('spread')].length - 1));
   G.shots++;
   const lock = turretAim === null ? assistTarget() : null;
   const aim = turretAim ?? (lock ? leadAngle(lock) : p.a);
-  for (const da of powerFx.spread[powerLvl('spread')]) spawnShell(p.x, p.z, aim + da, 'player', null);
+  for (const da of fan) spawnShell(p.x, p.z, aim + da, 'player', null);
   const muzzle = turretAim ?? p.a, mx = p.x + Math.sin(muzzle) * 2.4, mz = p.z + Math.cos(muzzle) * 2.4;
   flash(mx, 1.5, mz, 0.9, '#fff1b0', 0.12);
   p.recoil = 1;
@@ -2160,7 +2176,7 @@ function spawnShell(x, z, a, owner, src) {
   const bounces = mine ? G.st.bounces + powerFx.bounce[powerLvl('bounce')] : 0;
   const b = {
     x, z, vx: Math.sin(a) * spd, vz: Math.cos(a) * spd,
-    life: mine ? SHELL_LIFE + Math.max(0, bounces - 1) * 0.3 : 2.8, bounces,
+    life: mine ? SHELL_LIFE + Math.max(0, bounces - 1) * 0.15 : 2.8, bounces,
     pierce: mine ? powerFx.pierce[powerLvl('pierce')] : 0, seek: mine ? powerFx.seeker[powerLvl('seeker')] : 0, hit: [],
     owner, src, banked: false, dead: false, mesh,
   };
@@ -5345,6 +5361,7 @@ function updateHud() {
     ui.comboBar.style.transform = `scaleX(${(G.comboTimer / G.st.comboWindow).toFixed(3)})`;
   }
   updatePowerChips();
+  updateAmmo();
   const perkSig = Object.values(G.perks).join(',');
   if (perkSig !== G.perkSig) { G.perkSig = perkSig; renderStrip(ui.perks, true); }
   drawRadar();
@@ -5362,6 +5379,17 @@ function updateGauntletHud() {
     const hp = G.bosses.reduce((a, b) => a + Math.max(0, b.alive ? b.hp : 0), 0), max = G.bosses.reduce((a, b) => a + b.maxHp, 0);
     ui.gBossFill.style.transform = `scaleX(${clamp(hp / max, 0, 1).toFixed(3)})`;
   }
+}
+
+// The shell rack: pips for free slots, shown once half of them are in the air.
+function updateAmmo() {
+  const used = liveShells(), show = used >= SHELL_CAP / 2 && G.state === 'play';
+  if (ui.ammo.hidden === show) ui.ammo.hidden = !show;
+  if (!show || hudCache.ammo === used) return;
+  hudCache.ammo = used;
+  if (ui.ammo.children.length !== SHELL_CAP) ui.ammo.innerHTML = '<i></i>'.repeat(SHELL_CAP);
+  [...ui.ammo.children].forEach((el, i) => el.classList.toggle('used', i >= SHELL_CAP - used));
+  ui.ammo.classList.toggle('full', used >= SHELL_CAP);
 }
 
 // Running power-ups under the timer: icon, level pips, and a sweep for the time left. Shield charges sit at the end.
